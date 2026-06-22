@@ -74,12 +74,13 @@ pealim/
 **Interfaces:**
 - Produces: `LookupResult`, `LookupError`, `Conjugation`, `SearchResult` (consumed by every later Worker task and mirrored by the extension).
 
-- [ ] **Step 1: Create the feature branch**
+- [ ] **Step 1: Verify you are on the feature branch**
 
 ```bash
 cd /Volumes/Annette/IdeaProjects/pealim
-git checkout -b feature/pealim-lookup-v1
+git branch --show-current   # must print: feature/pealim-lookup-v1
 ```
+The branch `feature/pealim-lookup-v1` already exists and is checked out. If it is not current, run `git checkout feature/pealim-lookup-v1`. Do NOT create a new branch and do NOT work on `main`.
 
 - [ ] **Step 2: Scaffold the Worker package and install deps**
 
@@ -259,8 +260,10 @@ describe('parseSearchResults', () => {
   it('parses a verb search result', () => {
     const r = parseSearchResults(verbHtml);
     expect(r).not.toBeNull();
-    expect(r!.lemma).toContain('בקש'.replace(/./g, '')); // niqqud-agnostic check below
-    expect(r!.lemma.normalize('NFC')).toMatch(/בקש/);
+    // Strip niqqud (all Hebrew nonspacing marks, \p{Mn}), then match the bare
+    // consonants — niqqud marks sit BETWEEN letters, so /בקש/ never matches the
+    // vocalized form directly.
+    expect(r!.lemma.replace(/\p{Mn}/gu, '')).toMatch(/בקש/);
     expect(r!.root).toBe('ב־ק־שׁ');
     expect(r!.translation.toLowerCase()).toMatch(/ask|request/);
     expect(r!.isVerb).toBe(true);
@@ -368,11 +371,11 @@ describe('parseDictPage', () => {
   });
 
   it('reads present-tense masculine singular (AP-ms)', () => {
-    expect(conjugation.present.ms.normalize('NFC')).toMatch(/מבקש/);
+    expect(conjugation.present.ms.replace(/\p{Mn}/gu, '')).toMatch(/מבקש/);
   });
 
   it('reads the infinitive (INF-L)', () => {
-    expect(conjugation.infinitive.normalize('NFC')).toMatch(/לבקש/);
+    expect(conjugation.infinitive.replace(/\p{Mn}/gu, '')).toMatch(/לבקש/);
   });
 
   it('fills every Active-forms coordinate (non-empty)', () => {
@@ -388,7 +391,7 @@ describe('parseDictPage', () => {
 
   it('does NOT pull from the Passive-forms table', () => {
     // AP-ms is the active present m.sg.; passive cells are prefixed `passive-`.
-    expect(conjugation.present.ms.normalize('NFC')).not.toMatch(/מבוקש/);
+    expect(conjugation.present.ms.replace(/\p{Mn}/gu, '')).not.toMatch(/מבוקש/);
   });
 });
 ```
@@ -542,7 +545,7 @@ describe('lookup', () => {
     if (isError(r)) return;
     expect(r.isVerb).toBe(true);
     expect(r.binyan).toBe("Pi'el");
-    expect(r.conjugation?.infinitive.normalize('NFC')).toMatch(/לבקש/);
+    expect(r.conjugation!.infinitive.replace(/\p{Mn}/gu, '')).toMatch(/לבקש/);
     expect(r.translation.toLowerCase()).toMatch(/ask|request/);
   });
 
@@ -766,6 +769,15 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+// Build JSON responses without relying on the static Response.json() helper,
+// which is not available in every test runtime.
+function json(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, 'content-type': 'application/json; charset=utf-8' },
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
@@ -774,17 +786,17 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname !== '/lookup') {
-      return Response.json({ error: 'Not found', code: 'NO_RESULTS' }, { status: 404, headers: CORS });
+      return json({ error: 'Not found', code: 'NO_RESULTS' }, 404);
     }
 
     const q = url.searchParams.get('q') ?? '';
     if (!q.trim()) {
-      return Response.json({ error: 'Missing q parameter', code: 'NO_RESULTS' }, { status: 400, headers: CORS });
+      return json({ error: 'Missing q parameter', code: 'NO_RESULTS' }, 400);
     }
 
     const result = await lookup(q, { kv: env.PEALIM_CACHE ?? null });
     const status = isError(result) ? (result.code === 'NO_RESULTS' ? 404 : 502) : 200;
-    return Response.json(result, { status, headers: CORS });
+    return json(result, status);
   },
 };
 ```
