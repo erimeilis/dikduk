@@ -14,7 +14,11 @@ export function parseSearchResults(html: string): SearchResult | null {
   const href = dictLink?.getAttribute('href');
   if (!href) return null;
 
-  const lemma = (lemmaEl?.text ?? dictLink?.text ?? '').split('~')[0].replace(/\s+/g, ' ').trim();
+  const lemma = (lemmaEl?.text ?? dictLink?.text ?? '')
+    .split('~')[0]
+    .replace(/\s+/g, ' ')
+    .replace(/^[^א-ת]+/u, '') // drop leading audio icon / junk before the first Hebrew letter
+    .trim();
 
   // Use the anchor inside .verb-search-root to avoid the "Root: " label text
   const rootLinkText = first.querySelector('.verb-search-root a')?.text ?? '';

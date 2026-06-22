@@ -9,10 +9,9 @@ describe('parseSearchResults', () => {
   it('parses a verb search result', () => {
     const r = parseSearchResults(verbHtml);
     expect(r).not.toBeNull();
-    // Strip niqqud (all Hebrew nonspacing marks, \p{Mn}), then match the bare
-    // consonants — niqqud marks sit BETWEEN letters, so /בקש/ never matches the
-    // vocalized form directly.
-    expect(r!.lemma.replace(/\p{Mn}/gu, '')).toMatch(/בקש/);
+    // Strip niqqud (all Hebrew nonspacing marks, \p{Mn}), then assert exact consonants.
+    expect(r!.lemma.replace(/\p{Mn}/gu, '')).toBe('לבקש');
+    expect(r!.lemma).not.toContain('\u{1F50A}'); // no 🔊 audio icon
     expect(r!.root).toBe('ב־ק־שׁ');
     expect(r!.translation.toLowerCase()).toMatch(/ask|request/);
     expect(r!.isVerb).toBe(true);
@@ -23,6 +22,8 @@ describe('parseSearchResults', () => {
     const r = parseSearchResults(adjHtml);
     expect(r).not.toBeNull();
     expect(r!.isVerb).toBe(false);
+    expect(r!.lemma.replace(/\p{Mn}/gu, '')).toBe('מבוקש');
+    expect(r!.lemma).not.toContain('\u{1F50A}'); // no 🔊 audio icon
     expect(r!.translation.toLowerCase()).toMatch(/want|request|desire|require/);
     expect(r!.dictUrl).toContain('/dict/9321-mevukash/');
   });

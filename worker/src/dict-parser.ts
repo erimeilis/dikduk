@@ -22,7 +22,11 @@ function formById(root: HTMLElement, id: string): string {
   if (!cell) return '';
   const menukad = cell.querySelector('.menukad');
   const raw = menukad?.text ?? cell.text;
-  return raw.split('~')[0].replace(/\s+/g, ' ').trim();
+  return raw
+    .split('~')[0]
+    .replace(/[​-‏‪-‮]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function mapForms<K extends string>(
