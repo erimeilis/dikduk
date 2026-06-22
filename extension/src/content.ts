@@ -5,6 +5,7 @@ import type { LookupMessage, LookupResponse } from './types';
 
 let host: HTMLDivElement | null = null;
 let shadow: ShadowRoot | null = null;
+let lastAnchor: DOMRect | null = null;
 
 function ensureHost(): ShadowRoot {
   if (host && shadow) return shadow;
@@ -14,6 +15,13 @@ function ensureHost(): ShadowRoot {
   const style = document.createElement('style');
   style.textContent = POPUP_CSS;
   shadow.appendChild(style);
+  shadow.addEventListener('click', (e) => {
+    const link = (e.target as HTMLElement | null)?.closest('.pealim-seealso-link') as HTMLElement | null;
+    if (!link) return;
+    e.preventDefault();
+    const word = link.dataset.word;
+    if (word) void lookupAndShow(word, lastAnchor ?? new DOMRect(lastPointer.x, lastPointer.y, 0, 0));
+  });
   document.body.appendChild(host);
   return shadow;
 }
@@ -41,6 +49,18 @@ function showNode(node: HTMLElement, anchor: DOMRect): void {
   host!.style.top = `${pos.top + window.scrollY}px`;
 }
 
+async function lookupAndShow(word: string, anchor: DOMRect): Promise<void> {
+  lastAnchor = anchor;
+  showNode(renderLoading(word), anchor);
+  try {
+    const data = (await chrome.runtime.sendMessage({ type: 'lookup', word })) as LookupResponse;
+    showNode(renderPopup(data), anchor);
+  } catch (e) {
+    console.error('[pealim] messaging failed:', e);
+    showNode(renderPopup({ error: `Lookup failed: ${(e as Error).message}`, code: 'UPSTREAM' }), anchor);
+  }
+}
+
 document.addEventListener('dblclick', async () => {
   const sel = window.getSelection();
   const text = sel?.toString() ?? '';
@@ -52,16 +72,7 @@ document.addEventListener('dblclick', async () => {
   const range = sel.getRangeAt(0);
   const anchor = range.getBoundingClientRect();
 
-  showNode(renderLoading(word), anchor);
-
-  try {
-    const msg: LookupMessage = { type: 'lookup', word };
-    const data = (await chrome.runtime.sendMessage(msg)) as LookupResponse;
-    showNode(renderPopup(data), anchor);
-  } catch (e) {
-    console.error('[pealim] messaging failed:', e);
-    showNode(renderPopup({ error: `Lookup failed: ${(e as Error).message}`, code: 'UPSTREAM' }), anchor);
-  }
+  await lookupAndShow(word, anchor);
 });
 
 document.addEventListener('mousedown', (e) => {
@@ -90,5 +101,6 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; data?: LookupRespons
   } else {
     anchor = new DOMRect(lastPointer.x, lastPointer.y, 0, 0);
   }
+  lastAnchor = anchor;
   showNode(renderPopup(msg.data), anchor);
 });

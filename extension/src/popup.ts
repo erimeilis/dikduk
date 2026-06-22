@@ -85,6 +85,7 @@ function buildMatrix(forms: Conjugation): HTMLTableElement {
 
 function detailsSection(title: string, body: HTMLElement, open: boolean): HTMLElement {
   const d = document.createElement('details');
+  d.setAttribute('name', 'pealim-accordion'); // exclusive accordion — opening one closes the others
   if (open) d.open = true;
   const s = document.createElement('summary');
   s.textContent = title;
@@ -98,6 +99,8 @@ function buildSeeAlso(refs: { label: string; slug: string }[]): HTMLElement {
   for (const r of refs) {
     const a = document.createElement('a');
     a.href = `https://www.pealim.com/dict/${r.slug}/`;
+    a.className = 'pealim-seealso-link';
+    a.dataset.word = r.label;
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
     a.textContent = r.label;
