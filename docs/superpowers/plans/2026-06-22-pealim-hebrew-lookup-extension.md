@@ -705,7 +705,7 @@ git commit -m "Add lookup orchestration with KV caching and query normalization"
 
 **Interfaces:**
 - Consumes: `lookup`, `isError`.
-- Produces: default export `{ fetch(request, env) }`; `interface Env { PEALIM_CACHE: KVNamespace }`.
+- Produces: default export `{ fetch(request, env) }`; `interface Env { PEALIM_CACHE: KVLike }` (imports `KVLike` from `./lookup`; not the workers-types `KVNamespace` global).
 
 - [ ] **Step 1: Write the failing test `worker/test/index.test.ts`**
 
@@ -757,10 +757,14 @@ Expected: FAIL — "Cannot find module '../src/index'".
 - [ ] **Step 3: Implement `worker/src/index.ts`**
 
 ```ts
-import { lookup, isError } from './lookup';
+import { lookup, isError, type KVLike } from './lookup';
 
+// PEALIM_CACHE is typed as the narrow KVLike our code uses, not the
+// workers-types `KVNamespace` global. The runtime binding is a full
+// KVNamespace (a superset), but keeping this file free of workers-types
+// globals lets the Node-typed test project (tsconfig.test.json) import it.
 export interface Env {
-  PEALIM_CACHE: KVNamespace;
+  PEALIM_CACHE: KVLike;
 }
 
 const CORS = {
