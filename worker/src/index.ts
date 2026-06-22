@@ -8,6 +8,7 @@ export interface Env {
   PEALIM_CACHE: KVLike;
 }
 
+// Public, read-only, unauthenticated GET lookup — wildcard origin is intentional.
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',

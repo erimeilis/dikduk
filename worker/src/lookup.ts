@@ -90,6 +90,10 @@ export async function lookup(
       return { error: "Couldn't read Pealim's conjugation page", code: 'PARSE' };
     }
     const { binyan, conjugation } = parsed;
+    if (!conjugation.infinitive && !conjugation.present.ms) {
+      console.error('[lookup] dict parse produced no Active-forms data for', sr.dictUrl);
+      return { error: "Couldn't read Pealim's conjugation page", code: 'PARSE' };
+    }
     if (binyan) result.binyan = binyan;
     result.conjugation = conjugation;
   }

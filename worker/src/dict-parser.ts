@@ -21,7 +21,7 @@ function formById(root: HTMLElement, id: string): string {
   const cell = root.getElementById(id);
   if (!cell) return '';
   const menukad = cell.querySelector('.menukad');
-  const raw = menukad?.text ?? cell.text ?? '';
+  const raw = menukad?.text ?? cell.text;
   return raw.split('~')[0].replace(/\s+/g, ' ').trim();
 }
 

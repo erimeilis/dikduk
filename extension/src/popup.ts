@@ -48,6 +48,7 @@ function th(text: string, span = 1): HTMLTableCellElement {
 }
 
 function buildMatrix(r: LookupResult): HTMLTableElement {
+  const DATA_COLS = 4;
   const c = r.conjugation!;
   const table = document.createElement('table');
 
@@ -77,7 +78,7 @@ function buildMatrix(r: LookupResult): HTMLTableElement {
   row('Future 2', [td(c.future['2ms']), td(c.future['2fs']), td(c.future['2mp']), td(c.future['2fp'])]);
   row('Future 3', [td(c.future['3ms']), td(c.future['3fs']), td(c.future['3mp']), td(c.future['3fp'])]);
   row('Imperative', [td(c.imperative['2ms']), td(c.imperative['2fs']), td(c.imperative['2mp']), td(c.imperative['2fp'])]);
-  row('Infinitive', [td(c.infinitive, 4)]);
+  row('Infinitive', [td(c.infinitive, DATA_COLS)]);
 
   return table;
 }

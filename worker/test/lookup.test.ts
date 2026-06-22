@@ -74,6 +74,16 @@ describe('lookup', () => {
     expect(r.isVerb).toBe(true);
   });
 
+  it('returns PARSE when a verb dict page has no Active-forms data', async () => {
+    const dictEmpty = f('dict-empty.html');
+    const fetchImpl = (async (input: any) => {
+      const url = typeof input === 'string' ? input : input.url;
+      return new Response(url.includes('/dict/') ? dictEmpty : searchVerb, { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = await lookup('לבקש', { fetchImpl });
+    expect(isError(r) && r.code).toBe('PARSE');
+  });
+
   it('serves from KV cache on the second call', async () => {
     const store = new Map<string, string>();
     const kv = {

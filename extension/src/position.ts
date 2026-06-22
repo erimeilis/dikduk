@@ -1,5 +1,5 @@
-interface Rect { left: number; top: number; bottom: number; right: number }
-interface Size { width: number; height: number }
+export interface Rect { left: number; top: number; bottom: number; right: number }
+export interface Size { width: number; height: number }
 
 export function computePosition(
   anchor: Rect,
