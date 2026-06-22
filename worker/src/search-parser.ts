@@ -39,12 +39,9 @@ export function parseSearchResults(html: string): SearchResult | null {
     if (bRaw) binyan = bRaw.toLowerCase().replace(/^./, (c) => c.toUpperCase()); // "PI'EL" -> "Pi'el"
   }
 
-  return {
-    lemma,
-    root: root_,
-    translation,
-    isVerb,
-    dictUrl: href.startsWith('http') ? href : BASE + href,
-    binyan,
-  };
+  const dictUrl = href.startsWith('http') ? href : BASE + href;
+  const slugMatch = dictUrl.match(/\/dict\/([^/?#]+)\//);
+  const slug = slugMatch ? slugMatch[1] : '';
+
+  return { lemma, slug, root: root_, translation, isVerb, binyan, dictUrl };
 }

@@ -17,6 +17,7 @@ describe('parseSearchResults', () => {
     expect(r!.translation.toLowerCase()).toMatch(/ask|request/);
     expect(r!.isVerb).toBe(true);
     expect(r!.dictUrl).toBe('https://www.pealim.com/dict/255-levakesh/');
+    expect(r!.slug).toBe('255-levakesh');
     expect(r!.binyan).toBe("Pi'el");
   });
 
@@ -28,6 +29,7 @@ describe('parseSearchResults', () => {
     expect(r!.lemma).not.toContain('\u{1F50A}'); // no 🔊 audio icon
     expect(r!.translation.toLowerCase()).toMatch(/want|request|desire|require/);
     expect(r!.dictUrl).toContain('/dict/9321-mevukash/');
+    expect(r!.slug).toBe('9321-mevukash');
   });
 
   it('returns null when there is no result block', () => {
