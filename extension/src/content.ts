@@ -1,6 +1,6 @@
 import { containsHebrew, extractWord } from './hebrew';
 import { computePosition } from './position';
-import { renderPopup, renderLoading, POPUP_CSS } from './popup';
+import { renderPopup, renderLoading, renderChips, renderOcrLoading, POPUP_CSS } from './popup';
 import type { LookupResponse } from './types';
 
 let host: HTMLDivElement | null = null;
@@ -17,10 +17,10 @@ function ensureHost(): ShadowRoot {
   style.textContent = POPUP_CSS;
   shadow.appendChild(style);
   shadow.addEventListener('click', (e) => {
-    const link = (e.target as HTMLElement | null)?.closest('.pealim-seealso-link') as HTMLElement | null;
-    if (!link) return;
+    const target = (e.target as HTMLElement | null)?.closest('.pealim-seealso-link, .pealim-chip') as HTMLElement | null;
+    if (!target) return;
     e.preventDefault();
-    const word = link.dataset.word;
+    const word = target.dataset.word;
     if (word) void lookupAndShow(word, lastAnchor ?? new DOMRect(lastPointer.x, lastPointer.y, 0, 0));
   });
   document.body.appendChild(host);
@@ -103,4 +103,18 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; data?: LookupRespons
   }
   lastAnchor = anchor;
   showNode(renderPopup(msg.data), anchor);
+});
+
+chrome.runtime.onMessage.addListener((msg: { type?: string; words?: string[]; message?: string }) => {
+  if (msg?.type === 'ocr-loading') {
+    const anchor = new DOMRect(lastPointer.x, lastPointer.y, 0, 0);
+    lastAnchor = anchor;
+    showNode(renderOcrLoading(), anchor);
+  } else if (msg?.type === 'ocr-words') {
+    const anchor = lastAnchor ?? new DOMRect(lastPointer.x, lastPointer.y, 0, 0);
+    showNode(renderChips(msg.words ?? []), anchor);
+  } else if (msg?.type === 'ocr-error') {
+    const anchor = lastAnchor ?? new DOMRect(lastPointer.x, lastPointer.y, 0, 0);
+    showNode(renderPopup({ error: msg.message ?? 'OCR failed', code: 'UPSTREAM' }), anchor);
+  }
 });
