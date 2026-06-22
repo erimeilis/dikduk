@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderPopup } from '../src/popup';
+import { renderPopup, renderChips, renderOcrLoading } from '../src/popup';
 import type { Conjugation, LookupResult } from '../src/types';
 
 const activeForms: Conjugation = {
@@ -91,5 +91,29 @@ describe('renderPopup accordion', () => {
     const el = renderPopup({ error: 'No Pealim entry for «xyz»', code: 'NO_RESULTS' });
     expect(el.classList.contains('pealim-error')).toBe(true);
     expect(el.textContent).toContain('No Pealim entry');
+  });
+});
+
+describe('renderChips', () => {
+  it('renders one button per word, carrying the word in data-word', () => {
+    const el = renderChips(['שלום', 'לבקש']);
+    expect(el.getAttribute('dir')).toBe('rtl');
+    const chips = el.querySelectorAll('button.pealim-chip');
+    expect(chips.length).toBe(2);
+    expect(chips[0].getAttribute('data-word')).toBe('שלום');
+    expect(chips[0].textContent).toBe('שלום');
+  });
+  it('shows a no-results message for an empty list', () => {
+    const el = renderChips([]);
+    expect(el.querySelector('button.pealim-chip')).toBeNull();
+    expect(el.textContent).toContain('No Hebrew');
+  });
+});
+
+describe('renderOcrLoading', () => {
+  it('renders a reading state', () => {
+    const el = renderOcrLoading();
+    expect(el.classList.contains('pealim-loading')).toBe(true);
+    expect(el.textContent).toContain('Reading image');
   });
 });
