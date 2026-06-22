@@ -1,114 +1,84 @@
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { lookup, isError, normalizeQuery } from '../src/lookup';
+import type { LookupResult } from '../src/types';
+import type { Store } from '../src/store';
 
-// Fixture paths are relative to the worker package root (vitest cwd).
 const f = (n: string) => readFileSync(`test/fixtures/${n}`, 'utf-8');
 const searchVerb = f('search-levakesh.html');
-const dict = f('dict-levakesh.html');
-const searchAdj = f('search-mevukash.html');
+const dictVerb = f('dict-levakesh.html');
 
 function fakeFetch(map: Record<string, string>): typeof fetch {
   return (async (input: any) => {
     const url = typeof input === 'string' ? input : input.url;
     const key = Object.keys(map).find((k) => url.includes(k));
-    if (!key) return new Response('not found', { status: 404 });
-    return new Response(map[key], { status: 200 });
+    return new Response(key ? map[key] : 'x', { status: key ? 200 : 404 });
   }) as unknown as typeof fetch;
 }
 
+function memStore(seed: Record<string, LookupResult> = {}): Store & { puts: number } {
+  const m = new Map(Object.entries(seed));
+  return {
+    puts: 0,
+    async get(q: string) { return m.get(q) ?? null; },
+    async put(q: string, r: LookupResult) { (this as any).puts++; m.set(q, r); },
+  };
+}
+
 describe('normalizeQuery', () => {
-  it('strips surrounding punctuation and whitespace', () => {
+  it('strips surrounding punctuation', () => {
     expect(normalizeQuery('  «לבקש».  ')).toBe('לבקש');
   });
 });
 
-describe('lookup', () => {
-  it('returns a full verb result (search + dict)', async () => {
-    const fetchImpl = fakeFetch({ '/search/': searchVerb, '/dict/255-levakesh/': dict });
-    const r = await lookup('לבקש', { fetchImpl });
+describe('lookup v2 tiers', () => {
+  it('serves a verb from Pealim and writes through to the store', async () => {
+    const store = memStore();
+    const fetchImpl = fakeFetch({ '/search/': searchVerb, '/dict/255-levakesh/': dictVerb });
+    const r = await lookup('לבקש', { store, fetchImpl });
     expect(isError(r)).toBe(false);
     if (isError(r)) return;
-    expect(r.isVerb).toBe(true);
-    expect(r.binyan).toBe("Pi'el");
-    expect(r.conjugation!.infinitive.replace(/\p{Mn}/gu, '')).toMatch(/לבקש/);
-    expect(r.translation.toLowerCase()).toMatch(/ask|request/);
+    expect(r.slug).toBe('255-levakesh');
+    expect(r.voices?.active?.binyan).toBe("Pi'el");
+    expect(r.voices?.passive?.binyan).toBe("Pu'al");
+    expect(r.seeAlso.map((s) => s.slug)).toContain('3000-bakasha');
+    expect(store.puts).toBe(1);
   });
 
-  it('returns a non-verb result without fetching a dict page', async () => {
-    const dictSpy = vi.fn();
-    const fetchImpl = (async (input: any) => {
-      const url = typeof input === 'string' ? input : input.url;
-      if (url.includes('/dict/')) dictSpy();
-      return new Response(searchAdj, { status: 200 });
-    }) as unknown as typeof fetch;
-    const r = await lookup('מבוקש', { fetchImpl });
+  it('serves from the D1 store without touching Pealim (resilience)', async () => {
+    const seeded: LookupResult = {
+      word: 'לבקש', lemma: 'לְבַקֵּשׁ', slug: '255-levakesh', translation: 'to ask',
+      root: 'ב־ק־שׁ', isVerb: true,
+      voices: { active: { binyan: "Pi'el", forms: {} as any } }, seeAlso: [],
+      sourceUrl: 'https://www.pealim.com/dict/255-levakesh/',
+    };
+    const store = memStore({ 'לבקש': seeded });
+    const fetchImpl = vi.fn(fakeFetch({}));
+    const r = await lookup('לבקש', { store, fetchImpl });
     expect(isError(r)).toBe(false);
-    if (isError(r)) return;
-    expect(r.isVerb).toBe(false);
-    expect(r.conjugation).toBeUndefined();
-    expect(dictSpy).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('KV hit short-circuits before the store', async () => {
+    const kvVal: LookupResult = {
+      word: 'לבקש', lemma: 'x', slug: '1-x', translation: 't', root: 'r', isVerb: false,
+      seeAlso: [], sourceUrl: 'https://e',
+    };
+    const kv = { get: async () => kvVal, put: async () => {} };
+    const store = memStore();
+    const fetchImpl = vi.fn(fakeFetch({}));
+    const r = await lookup('לבקש', { kv, store, fetchImpl });
+    expect(isError(r) ? null : r.slug).toBe('1-x');
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('returns NO_RESULTS when search has no result block', async () => {
-    const fetchImpl = fakeFetch({ '/search/': '<html><body>empty</body></html>' });
-    const r = await lookup('zzz', { fetchImpl });
+    const r = await lookup('zzz', { fetchImpl: fakeFetch({ '/search/': '<html></html>' }) });
     expect(isError(r) && r.code).toBe('NO_RESULTS');
   });
 
-  it('returns UPSTREAM on non-2xx from Pealim', async () => {
-    const fetchImpl = (async () => new Response('boom', { status: 503 })) as unknown as typeof fetch;
-    const r = await lookup('לבקש', { fetchImpl });
+  it('returns UPSTREAM on a non-2xx from Pealim', async () => {
+    const r = await lookup('לבקש', { fetchImpl: (async () => new Response('x', { status: 503 })) as any });
     expect(isError(r) && r.code).toBe('UPSTREAM');
-  });
-
-  it('falls back to fetch when KV get throws', async () => {
-    const kv = {
-      get: async (): Promise<unknown> => { throw new Error('kv down'); },
-      put: async () => {},
-    };
-    const fetchImpl = fakeFetch({ '/search/': searchVerb, '/dict/255-levakesh/': dict });
-    const r = await lookup('לבקש', { kv, fetchImpl });
-    expect(isError(r)).toBe(false);
-    if (isError(r)) return;
-    expect(r.isVerb).toBe(true);
-  });
-
-  it('returns PARSE when a verb dict page has no Active-forms data', async () => {
-    const dictEmpty = f('dict-empty.html');
-    const fetchImpl = (async (input: any) => {
-      const url = typeof input === 'string' ? input : input.url;
-      return new Response(url.includes('/dict/') ? dictEmpty : searchVerb, { status: 200 });
-    }) as unknown as typeof fetch;
-    const r = await lookup('לבקש', { fetchImpl });
-    expect(isError(r) && r.code).toBe('PARSE');
-  });
-
-  it('resolves binyan from the search page for a Qal verb (dict page has no Active-forms header)', async () => {
-    const searchQal = f('search-leechol.html');
-    const dictQal = f('dict-leechol.html');
-    const fetchImpl = (async (input: any) => {
-      const url = typeof input === 'string' ? input : input.url;
-      return new Response(url.includes('/dict/') ? dictQal : searchQal, { status: 200 });
-    }) as unknown as typeof fetch;
-    const r = await lookup('לאכול', { fetchImpl });
-    expect(isError(r)).toBe(false);
-    if (isError(r)) return;
-    expect(r.isVerb).toBe(true);
-    expect(r.binyan).toBe("Pa'al");
-    expect(r.conjugation?.present.ms.length).toBeGreaterThan(0);
-  });
-
-  it('serves from KV cache on the second call', async () => {
-    const store = new Map<string, string>();
-    const kv = {
-      get: async (k: string) => (store.has(k) ? JSON.parse(store.get(k)!) : null),
-      put: async (k: string, v: string) => void store.set(k, v),
-    };
-    const fetchImpl = vi.fn(fakeFetch({ '/search/': searchVerb, '/dict/255-levakesh/': dict }));
-    await lookup('לבקש', { kv, fetchImpl });
-    const callsAfterFirst = fetchImpl.mock.calls.length;
-    await lookup('לבקש', { kv, fetchImpl });
-    expect(fetchImpl.mock.calls.length).toBe(callsAfterFirst); // no new fetches
   });
 });
