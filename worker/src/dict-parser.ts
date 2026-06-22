@@ -1,25 +1,33 @@
 import { parse, type HTMLElement } from 'node-html-parser';
-import type { Conjugation } from './types';
+import type { Conjugation, Voice, SeeAlsoRef } from './types';
 
+const PRESENT_IDS = { ms: 'AP-ms', fs: 'AP-fs', mp: 'AP-mp', fp: 'AP-fp' } as const;
 const PAST_IDS = {
   '1s': 'PERF-1s', '1p': 'PERF-1p',
   '2ms': 'PERF-2ms', '2fs': 'PERF-2fs', '2mp': 'PERF-2mp', '2fp': 'PERF-2fp',
   '3ms': 'PERF-3ms', '3fs': 'PERF-3fs', '3p': 'PERF-3p',
 } as const;
-
 const FUTURE_IDS = {
   '1s': 'IMPF-1s', '1p': 'IMPF-1p',
   '2ms': 'IMPF-2ms', '2fs': 'IMPF-2fs', '2mp': 'IMPF-2mp', '2fp': 'IMPF-2fp',
   '3ms': 'IMPF-3ms', '3fs': 'IMPF-3fs', '3mp': 'IMPF-3mp', '3fp': 'IMPF-3fp',
 } as const;
-
-const IMP_IDS = {
-  '2ms': 'IMP-2ms', '2fs': 'IMP-2fs', '2mp': 'IMP-2mp', '2fp': 'IMP-2fp',
-} as const;
+const IMP_IDS = { '2ms': 'IMP-2ms', '2fs': 'IMP-2fs', '2mp': 'IMP-2mp', '2fp': 'IMP-2fp' } as const;
 
 function formById(root: HTMLElement, id: string): string {
   const cell = root.getElementById(id);
   if (!cell) return '';
+  // Prefer the chaser (bare Hebrew after ~) when present — passive Pu'al uses kubbutz
+  // (U+05BB) for /u/ which loses the vav mater lectionis when niqqud is stripped.
+  // The chaser span holds the unvoweled spelling with vav intact (e.g. מבוקש).
+  const chaser = cell.querySelector('.chaser');
+  if (chaser) {
+    return chaser.text
+      .replace(/^[\s~]+/, '')
+      .replace(/[​-‏‪-‮]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
   const menukad = cell.querySelector('.menukad');
   const raw = menukad?.text ?? cell.text;
   return raw
@@ -29,39 +37,71 @@ function formById(root: HTMLElement, id: string): string {
     .trim();
 }
 
-function mapForms<K extends string>(
-  root: HTMLElement,
-  ids: Record<K, string>,
-): Record<K, string> {
+function mapForms<K extends string>(root: HTMLElement, ids: Record<K, string>, prefix: string): Record<K, string> {
   const out = {} as Record<K, string>;
-  for (const key of Object.keys(ids) as K[]) out[key] = formById(root, ids[key]);
+  for (const key of Object.keys(ids) as K[]) out[key] = formById(root, prefix + ids[key]);
   return out;
 }
 
-export function parseDictPage(html: string): { binyan: string | null; conjugation: Conjugation } {
-  const root = parse(html);
+function readVoice(root: HTMLElement, prefix: string): Conjugation {
+  return {
+    present: {
+      ms: formById(root, prefix + PRESENT_IDS.ms),
+      fs: formById(root, prefix + PRESENT_IDS.fs),
+      mp: formById(root, prefix + PRESENT_IDS.mp),
+      fp: formById(root, prefix + PRESENT_IDS.fp),
+    },
+    past: mapForms(root, PAST_IDS, prefix),
+    future: mapForms(root, FUTURE_IDS, prefix),
+    imperative: mapForms(root, IMP_IDS, prefix),
+    infinitive: formById(root, prefix + 'INF-L'),
+  };
+}
 
-  let binyan: string | null = null;
+function hasForms(c: Conjugation): boolean {
+  return (
+    !!c.present.ms || !!c.infinitive ||
+    Object.values(c.past).some(Boolean) || Object.values(c.future).some(Boolean)
+  );
+}
+
+function binyanFor(root: HTMLElement, headerStart: string): string | null {
   for (const h of root.querySelectorAll('h3.page-header')) {
-    if (h.text.trim().startsWith('Active forms')) {
-      const small = h.querySelector('.small')?.text ?? '';
-      binyan = small.replace(/^Binyan\s+/i, '').trim() || null;
-      break;
+    if (h.text.trim().startsWith(headerStart)) {
+      return (h.querySelector('.small')?.text ?? '').replace(/^Binyan\s+/i, '').trim() || null;
     }
   }
+  return null;
+}
 
-  const conjugation: Conjugation = {
-    present: {
-      ms: formById(root, 'AP-ms'),
-      fs: formById(root, 'AP-fs'),
-      mp: formById(root, 'AP-mp'),
-      fp: formById(root, 'AP-fp'),
-    },
-    past: mapForms(root, PAST_IDS),
-    future: mapForms(root, FUTURE_IDS),
-    imperative: mapForms(root, IMP_IDS),
-    infinitive: formById(root, 'INF-L'),
+function parseSeeAlso(root: HTMLElement): SeeAlsoRef[] {
+  const out: SeeAlsoRef[] = [];
+  const tbl = root.querySelector('table.dict-table-t');
+  if (!tbl) return out;
+  for (const a of tbl.querySelectorAll('a')) {
+    const href = a.getAttribute('href') ?? '';
+    const m = href.match(/^\/dict\/(\d+-[^/?#]+)\/$/);
+    if (!m) continue;
+    const label = a.querySelector('.menukad')?.text?.replace(/[​-‏‪-‮]/g, '').trim();
+    if (label) out.push({ label, slug: m[1] });
+  }
+  return out;
+}
+
+export function parseDictPage(
+  html: string,
+): { voices?: { active?: Voice; passive?: Voice }; seeAlso: SeeAlsoRef[] } {
+  const root = parse(html);
+
+  const activeForms = readVoice(root, '');
+  const passiveForms = readVoice(root, 'passive-');
+
+  const voices: { active?: Voice; passive?: Voice } = {};
+  if (hasForms(activeForms)) voices.active = { binyan: binyanFor(root, 'Active forms'), forms: activeForms };
+  if (hasForms(passiveForms)) voices.passive = { binyan: binyanFor(root, 'Passive forms'), forms: passiveForms };
+
+  return {
+    voices: voices.active || voices.passive ? voices : undefined,
+    seeAlso: parseSeeAlso(root),
   };
-
-  return { binyan, conjugation };
 }
