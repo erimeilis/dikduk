@@ -5,3 +5,9 @@ compatibility_date = "2026-06-22"
 [[kv_namespaces]]
 binding = "PEALIM_CACHE"
 id = "PLACEHOLDER_FILL_AT_DEPLOY"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pealim"
+database_id = "PLACEHOLDER_FILL_AT_DEPLOY"
+migrations_dir = "migrations"

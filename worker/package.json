@@ -6,7 +6,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:migrate:local": "wrangler d1 migrations apply pealim --local",
+    "db:migrate:prod": "wrangler d1 migrations apply pealim --remote"
   },
   "keywords": [],
   "author": "",
