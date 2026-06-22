@@ -253,8 +253,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parseSearchResults } from '../src/search-parser';
 
-const verbHtml = readFileSync(new URL('./fixtures/search-levakesh.html', import.meta.url), 'utf-8');
-const adjHtml = readFileSync(new URL('./fixtures/search-mevukash.html', import.meta.url), 'utf-8');
+const verbHtml = readFileSync('test/fixtures/search-levakesh.html', 'utf-8');
+const adjHtml = readFileSync('test/fixtures/search-mevukash.html', 'utf-8');
 
 describe('parseSearchResults', () => {
   it('parses a verb search result', () => {
@@ -361,7 +361,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parseDictPage } from '../src/dict-parser';
 
-const html = readFileSync(new URL('./fixtures/dict-levakesh.html', import.meta.url), 'utf-8');
+const html = readFileSync('test/fixtures/dict-levakesh.html', 'utf-8');
 
 describe('parseDictPage', () => {
   const { binyan, conjugation } = parseDictPage(html);
@@ -517,7 +517,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { lookup, isError, normalizeQuery } from '../src/lookup';
 
-const f = (n: string) => readFileSync(new URL(`./fixtures/${n}`, import.meta.url), 'utf-8');
+// Fixture paths are relative to the worker package root (vitest cwd).
+const f = (n: string) => readFileSync(`test/fixtures/${n}`, 'utf-8');
 const searchVerb = f('search-levakesh.html');
 const dict = f('dict-levakesh.html');
 const searchAdj = f('search-mevukash.html');
@@ -714,7 +715,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import worker from '../src/index';
 
-const f = (n: string) => readFileSync(new URL(`./fixtures/${n}`, import.meta.url), 'utf-8');
+// Fixture paths are relative to the worker package root (vitest cwd).
+const f = (n: string) => readFileSync(`test/fixtures/${n}`, 'utf-8');
 
 const env = { PEALIM_CACHE: null } as any;
 
