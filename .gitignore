@@ -21,5 +21,8 @@ build/
 # Claude local settings
 .claude/settings.local.json
 
+# Superpowers SDD scratch (briefs, reports, diffs, ledger)
+.superpowers/
+
 # OS
 .DS_Store
