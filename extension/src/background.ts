@@ -1,6 +1,7 @@
 import { WORKER_URL } from './config';
 import { cacheKeyFor } from './cache-key';
 import type { LookupResponse, LookupMessage } from './types';
+import { containsHebrew, extractWord } from './hebrew';
 
 async function fetchLookup(word: string): Promise<LookupResponse> {
   const key = cacheKeyFor(word);
@@ -33,4 +34,29 @@ chrome.runtime.onMessage.addListener((msg: LookupMessage, _sender, sendResponse)
   if (msg?.type !== 'lookup') return false;
   fetchLookup(msg.word).then(sendResponse);
   return true; // keep the message channel open for the async response
+});
+
+const MENU_ID = 'pealim-lookup';
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: MENU_ID,
+      title: 'Look up "%s" in Pealim',
+      contexts: ['selection'],
+    });
+  });
+});
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== MENU_ID || !tab?.id) return;
+  const word = extractWord(info.selectionText ?? '');
+  const data = !word || !containsHebrew(word)
+    ? { error: 'Select a Hebrew word to look up.', code: 'NO_RESULTS' as const }
+    : await fetchLookup(word);
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: 'render', data });
+  } catch (e) {
+    console.error('[pealim] could not deliver lookup result to tab:', e);
+  }
 });

@@ -3,7 +3,7 @@
   "name": "Pealim Hebrew Lookup",
   "version": "1.0.0",
   "description": "Double-click a Hebrew word to see its translation, root, and verb conjugation from Pealim.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "contextMenus"],
   "host_permissions": ["http://localhost:8787/*", "https://pealim-lookup.PLACEHOLDER.workers.dev/*"],
   "background": { "service_worker": "src/background.ts", "type": "module" },
   "content_scripts": [
