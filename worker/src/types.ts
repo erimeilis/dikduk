@@ -14,14 +14,25 @@ export interface Conjugation {
   infinitive: string;
 }
 
+export interface Voice {
+  binyan: string | null;
+  forms: Conjugation;
+}
+
+export interface SeeAlsoRef {
+  label: string;
+  slug: string;
+}
+
 export interface LookupResult {
   word: string;
   lemma: string;
+  slug: string;
   translation: string;
   root: string;
   isVerb: boolean;
-  binyan?: string;
-  conjugation?: Conjugation;
+  voices?: { active?: Voice; passive?: Voice };
+  seeAlso: SeeAlsoRef[];
   sourceUrl: string;
 }
 
@@ -34,9 +45,10 @@ export interface LookupError {
 
 export interface SearchResult {
   lemma: string;
+  slug: string;
   root: string;
   translation: string;
   isVerb: boolean;
-  dictUrl: string;
   binyan?: string;
+  dictUrl: string;
 }
