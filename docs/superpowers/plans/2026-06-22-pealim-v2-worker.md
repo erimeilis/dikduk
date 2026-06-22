@@ -51,11 +51,12 @@ worker/
 
 **Interfaces:** Produces the D1 schema (`entries`, `aliases`, `see_also`) and the `DB` binding that Tasks 5/7 use.
 
-- [ ] **Step 1: Create the feature branch**
+- [ ] **Step 1: Verify you are on the feature branch**
 ```bash
 cd /Volumes/Annette/IdeaProjects/pealim
-git checkout -b feature/pealim-v2-worker
+git branch --show-current   # must print: feature/pealim-v2-worker
 ```
+The branch `feature/pealim-v2-worker` already exists and is checked out (branched from the v1 work). Do NOT create a new branch; do NOT switch to `main` or the v1 branch.
 
 - [ ] **Step 2: Write `worker/migrations/0001_init.sql`**
 ```sql
