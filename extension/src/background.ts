@@ -1,6 +1,6 @@
 import { WORKER_URL } from './config';
 import { cacheKeyFor } from './cache-key';
-import type { LookupResponse, LookupMessage } from './types';
+import type { LookupResponse, LookupMessage, RenderMessage } from './types';
 import { containsHebrew, extractWord } from './hebrew';
 
 async function fetchLookup(word: string): Promise<LookupResponse> {
@@ -54,8 +54,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const data = !word || !containsHebrew(word)
     ? { error: 'Select a Hebrew word to look up.', code: 'NO_RESULTS' as const }
     : await fetchLookup(word);
+  // content script may not be injected on this tab (e.g. chrome:// pages)
   try {
-    await chrome.tabs.sendMessage(tab.id, { type: 'render', data });
+    const message: RenderMessage = { type: 'render', data };
+    await chrome.tabs.sendMessage(tab.id, message);
   } catch (e) {
     console.error('[pealim] could not deliver lookup result to tab:', e);
   }

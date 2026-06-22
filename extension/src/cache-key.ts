@@ -1,3 +1,3 @@
 export function cacheKeyFor(word: string): string {
-  return `pealim:${word.trim()}`;
+  return `pealim:v2:${word.trim()}`;
 }
