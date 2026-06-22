@@ -1,6 +1,16 @@
 import { parse, type HTMLElement } from 'node-html-parser';
 import type { Conjugation, Voice, SeeAlsoRef } from './types';
 
+// Keep Pealim's primary spelling ("primary ~ alternate" → "primary"), drop zero-width and
+// bidi control chars (U+200B–U+200F, U+202A–U+202E), collapse whitespace.
+function cleanText(s: string): string {
+  return s
+    .split('~')[0]
+    .replace(/[​-‏‪-‮]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const PRESENT_IDS = { ms: 'AP-ms', fs: 'AP-fs', mp: 'AP-mp', fp: 'AP-fp' } as const;
 const PAST_IDS = {
   '1s': 'PERF-1s', '1p': 'PERF-1p',
@@ -18,12 +28,7 @@ function formById(root: HTMLElement, id: string): string {
   const cell = root.getElementById(id);
   if (!cell) return '';
   const menukad = cell.querySelector('.menukad');
-  const raw = menukad?.text ?? cell.text;
-  return raw
-    .split('~')[0]
-    .replace(/[​-‏‪-‮]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return cleanText(menukad?.text ?? cell.text);
 }
 
 function mapForms<K extends string>(root: HTMLElement, ids: Record<K, string>, prefix: string): Record<K, string> {
@@ -71,7 +76,8 @@ function parseSeeAlso(root: HTMLElement): SeeAlsoRef[] {
     const href = a.getAttribute('href') ?? '';
     const m = href.match(/^\/dict\/(\d+-[^/?#]+)\/$/);
     if (!m) continue;
-    const label = a.querySelector('.menukad')?.text?.replace(/[​-‏‪-‮]/g, '').trim();
+    const raw = a.querySelector('.menukad')?.text;
+    const label = raw ? cleanText(raw) : undefined;
     if (label) out.push({ label, slug: m[1] });
   }
   return out;

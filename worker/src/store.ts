@@ -40,7 +40,8 @@ export function createD1Store(db: D1Database): Store {
         )
         .first<{ id: number }>();
 
-      const entryId = upserted!.id;
+      if (!upserted) throw new Error(`entries upsert returned no id for slug ${result.slug}`);
+      const entryId = upserted.id;
 
       await db
         .prepare('INSERT OR IGNORE INTO aliases (query_key, entry_id, created_at) VALUES (?, ?, ?)')

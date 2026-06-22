@@ -43,7 +43,7 @@ export async function lookup(rawQuery: string, deps: LookupDeps = {}): Promise<L
   const doFetch = deps.fetchImpl ?? fetch;
   const kv = deps.kv ?? null;
   const store = deps.store ?? null;
-  const cacheKey = `lookup:${q}`;
+  const cacheKey = `lookup:v2:${q}`;
 
   // Tier 1: KV
   if (kv) {

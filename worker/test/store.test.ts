@@ -38,6 +38,7 @@ describe('createD1Store', () => {
 
   beforeEach(() => {
     db = new Database(':memory:');
+    db.pragma('foreign_keys = ON');
     db.exec(schema);
     store = createD1Store(d1(db));
   });
