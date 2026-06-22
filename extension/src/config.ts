@@ -1,3 +1,3 @@
-// Local dev uses `wrangler dev` on :8787. After deploying (Task 11), replace
-// this with your real workers.dev URL and update manifest host_permissions.
-export const WORKER_URL = 'http://localhost:8787';
+// Production Worker. For local dev, temporarily set this to 'http://localhost:8787'
+// and run `npm run dev` in worker/ (localhost is also allowed in manifest host_permissions).
+export const WORKER_URL = 'https://pealim-lookup.admice.workers.dev';

@@ -4,10 +4,10 @@ compatibility_date = "2026-06-22"
 
 [[kv_namespaces]]
 binding = "PEALIM_CACHE"
-id = "PLACEHOLDER_FILL_AT_DEPLOY"
+id = "57a382bb8db347839441eb237e4237f0"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "pealim"
-database_id = "PLACEHOLDER_FILL_AT_DEPLOY"
+database_id = "ea877319-aad2-49fa-9ae7-f2a0fe311714"
 migrations_dir = "migrations"
