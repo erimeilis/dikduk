@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+.dev.vars.*
+
+# Secrets / env
+.env
+.env.*
+
+# Editor / IDE
+.idea/
+
+# Claude local settings
+.claude/settings.local.json
+
+# OS
+.DS_Store
