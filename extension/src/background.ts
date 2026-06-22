@@ -1,7 +1,7 @@
 import { WORKER_URL } from './config';
 import { cacheKeyFor } from './cache-key';
 import type { LookupResponse, LookupMessage, RenderMessage } from './types';
-import { containsHebrew, extractWord } from './hebrew';
+import { containsHebrew, extractWord, extractHebrewWords } from './hebrew';
 
 async function fetchLookup(word: string): Promise<LookupResponse> {
   const key = cacheKeyFor(word);
@@ -37,6 +37,7 @@ chrome.runtime.onMessage.addListener((msg: LookupMessage, _sender, sendResponse)
 });
 
 const MENU_ID = 'pealim-lookup';
+const IMAGE_MENU_ID = 'pealim-ocr-image';
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
@@ -44,6 +45,11 @@ chrome.runtime.onInstalled.addListener(() => {
       id: MENU_ID,
       title: 'Look up "%s" in Pealim',
       contexts: ['selection'],
+    });
+    chrome.contextMenus.create({
+      id: IMAGE_MENU_ID,
+      title: 'Look up Hebrew in this image',
+      contexts: ['image'],
     });
   });
 });
@@ -60,5 +66,40 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await chrome.tabs.sendMessage(tab.id, message);
   } catch (e) {
     console.error('[pealim] could not deliver lookup result to tab:', e);
+  }
+});
+
+async function ensureOffscreen(): Promise<void> {
+  const existing = await chrome.offscreen.hasDocument();
+  if (existing) return;
+  await chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: ['WORKERS' as chrome.offscreen.Reason],
+    justification: 'Run Tesseract.js OCR on an image off the main thread.',
+  });
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== IMAGE_MENU_ID || !tab?.id || !info.srcUrl) return;
+  const tabId = tab.id;
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'ocr-loading' });
+    await ensureOffscreen();
+    const res = (await chrome.runtime.sendMessage({ type: 'ocr-image', srcUrl: info.srcUrl })) as
+      | { type: 'ocr-result'; text: string }
+      | { type: 'ocr-failed'; message: string };
+    if (res?.type === 'ocr-result') {
+      const words = extractHebrewWords(res.text);
+      await chrome.tabs.sendMessage(tabId, { type: 'ocr-words', words });
+    } else {
+      await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message: "Couldn't read the image." });
+    }
+  } catch (e) {
+    console.error('[pealim] OCR orchestration failed:', e);
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message: "Couldn't read the image." });
+    } catch (e2) {
+      console.error('[pealim] could not notify tab of OCR error:', e2);
+    }
   }
 });
