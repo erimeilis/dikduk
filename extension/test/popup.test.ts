@@ -71,8 +71,16 @@ describe('renderPopup accordion', () => {
     const el = renderPopup(noun);
     expect(el.textContent).toContain('מְבוּקָּשׁ');
     expect(el.textContent).toContain('wanted, required');
+    expect(el.textContent).toContain('root ');
     expect(el.querySelector('details')).toBeNull();
     expect(el.querySelector('table')).toBeNull();
+  });
+
+  it('does not set a non-http(s) sourceUrl as the link href (XSS guard)', () => {
+    const el = renderPopup({ ...noun, sourceUrl: 'javascript:alert(1)' });
+    const a = el.querySelector('.pealim-source a');
+    expect(a).not.toBeNull();
+    expect(a?.getAttribute('href')).toBeNull();
   });
 
   it('renders an error', () => {

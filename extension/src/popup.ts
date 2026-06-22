@@ -1,4 +1,4 @@
-import { type LookupResponse, type LookupResult, type Conjugation, isLookupError } from './types';
+import { type LookupResponse, type Conjugation, isLookupError } from './types';
 
 export const POPUP_CSS = `
 .pealim-popup {
@@ -99,7 +99,7 @@ function buildSeeAlso(refs: { label: string; slug: string }[]): HTMLElement {
     const a = document.createElement('a');
     a.href = `https://www.pealim.com/dict/${r.slug}/`;
     a.target = '_blank';
-    a.rel = 'noopener';
+    a.rel = 'noopener noreferrer';
     a.textContent = r.label;
     box.appendChild(a);
   }
@@ -130,7 +130,7 @@ export function renderPopup(data: LookupResponse): HTMLElement {
     const title = passive.binyan ? `Passive · ${passive.binyan}` : 'Passive';
     wrap.appendChild(detailsSection(title, buildMatrix(passive.forms), false));
   }
-  if (data.seeAlso.length) {
+  if (data.seeAlso?.length) {
     wrap.appendChild(detailsSection(`See also (${data.seeAlso.length})`, buildSeeAlso(data.seeAlso), false));
   }
 
@@ -138,7 +138,7 @@ export function renderPopup(data: LookupResponse): HTMLElement {
   const a = document.createElement('a');
   if (/^https?:\/\//i.test(data.sourceUrl)) a.href = data.sourceUrl;
   a.target = '_blank';
-  a.rel = 'noopener';
+  a.rel = 'noopener noreferrer';
   a.textContent = 'Pealim ↗';
   src.appendChild(a);
   wrap.appendChild(src);
