@@ -57,7 +57,7 @@ describe('renderPopup accordion', () => {
     // Exclusive accordion: every <details> shares the same name attribute
     expect(Array.from(el.querySelectorAll('details')).every((d) => d.getAttribute('name') === 'pealim-accordion')).toBe(true);
     // See-also links carry data-word for in-popup lookup
-    expect(see.querySelector('a')?.getAttribute('data-word')).toBeTruthy();
+    expect(see.querySelector('a')?.getAttribute('data-word')).toBe('בַּקָּשָׁה');
   });
 
   it('skips empty rows: passive matrix has no imperative/infinitive rows', () => {

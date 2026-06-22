@@ -1,10 +1,11 @@
 import { containsHebrew, extractWord } from './hebrew';
 import { computePosition } from './position';
 import { renderPopup, renderLoading, POPUP_CSS } from './popup';
-import type { LookupMessage, LookupResponse } from './types';
+import type { LookupResponse } from './types';
 
 let host: HTMLDivElement | null = null;
 let shadow: ShadowRoot | null = null;
+let lastPointer = { x: 0, y: 0 };
 let lastAnchor: DOMRect | null = null;
 
 function ensureHost(): ShadowRoot {
@@ -83,7 +84,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Context-menu lookups arrive as a 'render' message from the background worker.
-let lastPointer = { x: 0, y: 0 };
 document.addEventListener(
   'contextmenu',
   (e) => {

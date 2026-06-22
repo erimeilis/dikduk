@@ -101,8 +101,6 @@ function buildSeeAlso(refs: { label: string; slug: string }[]): HTMLElement {
     a.href = `https://www.pealim.com/dict/${r.slug}/`;
     a.className = 'pealim-seealso-link';
     a.dataset.word = r.label;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
     a.textContent = r.label;
     box.appendChild(a);
   }
