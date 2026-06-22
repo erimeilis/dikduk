@@ -112,15 +112,15 @@ Why three tables: `entries` is unique per Pealim entry (slug) so references are 
 One popup component, opened by both triggers. RTL, solid background (the v1 `display:block` card).
 
 ```
-┌───────────────────────────────┐
+┌─────────────────────────────────────────────────┐
 │ לְבַקֵּשׁ   to ask, request        │   header — always
-│ root ב־ק־שׁ                      │
-│ ▼ Active · Pi'el                │   section, expanded by default (verbs)
-│    [ Hebrew-only active matrix ]│
-│ ▸ Passive · Pu'al               │   section — ONLY if voices.passive exists
-│ ▸ See also (1)                  │   section — ONLY if seeAlso.length > 0
-│                       Pealim ↗  │
-└───────────────────────────────┘
+│ root ב־ק־שׁ                                      │
+│ ▼ Active · Pi'el                                │   section, expanded by default (verbs)
+│    [ Hebrew-only active matrix ]                │
+│ ▸ Passive · Pu'al                               │   section — ONLY if voices.passive exists
+│ ▸ See also (1)                                  │   section — ONLY if seeAlso.length > 0
+│                                        Pealim ↗ │
+└─────────────────────────────────────────────────┘
 ```
 
 - **Header:** lemma + translation + `root …` — always.
