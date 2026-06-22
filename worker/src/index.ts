@@ -26,7 +26,7 @@ function json(body: unknown, status: number): Response {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: CORS });
+      return new Response(null, { status: 204, headers: CORS });
     }
 
     const url = new URL(request.url);

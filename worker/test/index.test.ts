@@ -21,6 +21,7 @@ describe('worker.fetch', () => {
 
   it('answers OPTIONS preflight with CORS', async () => {
     const res = await worker.fetch(new Request('https://w/lookup', { method: 'OPTIONS' }), env);
+    expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Methods')).toMatch(/GET/);
   });
 
