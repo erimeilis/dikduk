@@ -44,12 +44,12 @@ function showNode(node: HTMLElement, anchor: DOMRect): void {
 document.addEventListener('dblclick', async () => {
   const sel = window.getSelection();
   const text = sel?.toString() ?? '';
-  if (!text || !containsHebrew(text)) return;
+  if (!sel || sel.rangeCount === 0 || !text || !containsHebrew(text)) return;
 
   const word = extractWord(text);
   if (!word) return;
 
-  const range = sel!.getRangeAt(0);
+  const range = sel.getRangeAt(0);
   const anchor = range.getBoundingClientRect();
 
   showNode(renderLoading(word), anchor);
@@ -65,7 +65,7 @@ document.addEventListener('dblclick', async () => {
 });
 
 document.addEventListener('mousedown', (e) => {
-  if (host && e.target !== host) dismiss();
+  if (host && !e.composedPath().includes(host)) dismiss();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') dismiss();
