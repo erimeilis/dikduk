@@ -20,11 +20,12 @@ function getWorker(): Promise<Worker> {
 chrome.runtime.onMessage.addListener(
   (msg: { type?: string; srcUrl?: string }, _sender, sendResponse) => {
     if (msg?.type !== 'ocr-image' || !msg.srcUrl) return false;
+    const srcUrl = msg.srcUrl;
 
     void (async () => {
       try {
         const worker = await getWorker();
-        const { data } = await worker.recognize(msg.srcUrl!);
+        const { data } = await worker.recognize(srcUrl);
         sendResponse({ type: 'ocr-result', text: data.text ?? '' });
       } catch (e) {
         console.error('[pealim] OCR failed:', e);

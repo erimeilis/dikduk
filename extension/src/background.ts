@@ -79,20 +79,35 @@ async function ensureOffscreen(): Promise<void> {
   });
 }
 
+async function sendToOffscreen(srcUrl: string): Promise<{ type: string; text?: string; message?: string }> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await chrome.runtime.sendMessage({ type: 'ocr-image', srcUrl });
+    } catch (e) {
+      lastErr = e; // offscreen listener not ready yet — brief backoff then retry
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  throw lastErr;
+}
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== IMAGE_MENU_ID || !tab?.id || !info.srcUrl) return;
   const tabId = tab.id;
   try {
     await chrome.tabs.sendMessage(tabId, { type: 'ocr-loading' });
     await ensureOffscreen();
-    const res = (await chrome.runtime.sendMessage({ type: 'ocr-image', srcUrl: info.srcUrl })) as
-      | { type: 'ocr-result'; text: string }
-      | { type: 'ocr-failed'; message: string };
+    const res = await sendToOffscreen(info.srcUrl);
     if (res?.type === 'ocr-result') {
-      const words = extractHebrewWords(res.text);
+      const words = extractHebrewWords(res.text ?? '');
       await chrome.tabs.sendMessage(tabId, { type: 'ocr-words', words });
     } else {
-      await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message: "Couldn't read the image." });
+      console.error('[pealim] OCR failed in offscreen:', res?.message);
+      const message = /fetch|load|network|cors|http|404|not found/i.test(res?.message ?? '')
+        ? "Couldn't load that image."
+        : "Couldn't read the image.";
+      await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message });
     }
   } catch (e) {
     console.error('[pealim] OCR orchestration failed:', e);

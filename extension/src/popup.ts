@@ -179,7 +179,6 @@ export function renderChips(words: string[]): HTMLElement {
 
 export function renderOcrLoading(): HTMLElement {
   const wrap = el('div', 'pealim-popup pealim-loading');
-  wrap.setAttribute('dir', 'rtl');
   wrap.appendChild(el('div', undefined, 'Reading image…'));
   return wrap;
 }
