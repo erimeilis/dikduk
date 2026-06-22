@@ -1,4 +1,5 @@
 import { lookup, isError, type KVLike } from './lookup';
+import { createD1Store } from './store';
 
 // PEALIM_CACHE is typed as the narrow KVLike our code uses, not the
 // workers-types `KVNamespace` global. The runtime binding is a full
@@ -6,6 +7,7 @@ import { lookup, isError, type KVLike } from './lookup';
 // globals lets the Node-typed test project (tsconfig.test.json) import it.
 export interface Env {
   PEALIM_CACHE: KVLike;
+  DB: D1Database;
 }
 
 // Public, read-only, unauthenticated GET lookup — wildcard origin is intentional.
@@ -40,7 +42,10 @@ export default {
       return json({ error: 'Missing q parameter', code: 'NO_RESULTS' }, 400);
     }
 
-    const result = await lookup(q, { kv: env.PEALIM_CACHE ?? null });
+    const result = await lookup(q, {
+      kv: env.PEALIM_CACHE ?? null,
+      store: env.DB ? createD1Store(env.DB) : null,
+    });
     const status = isError(result) ? (result.code === 'NO_RESULTS' ? 404 : 502) : 200;
     return json(result, status);
   },

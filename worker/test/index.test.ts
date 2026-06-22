@@ -5,7 +5,7 @@ import worker from '../src/index';
 // Fixture paths are relative to the worker package root (vitest cwd).
 const f = (n: string) => readFileSync(`test/fixtures/${n}`, 'utf-8');
 
-const env = { PEALIM_CACHE: null } as any;
+const env = { PEALIM_CACHE: null, DB: null } as any;
 
 describe('worker.fetch', () => {
   it('400s when q is missing', async () => {
@@ -34,6 +34,7 @@ describe('worker.fetch', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.isVerb).toBe(true);
+    expect(body.voices.active.binyan).toBe("Pi'el");
     vi.unstubAllGlobals();
   });
 });
