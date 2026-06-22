@@ -1,0 +1,7 @@
+name = "pealim-lookup"
+main = "src/index.ts"
+compatibility_date = "2026-06-22"
+
+[[kv_namespaces]]
+binding = "PEALIM_CACHE"
+id = "PLACEHOLDER_FILL_AT_DEPLOY"
