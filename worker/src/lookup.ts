@@ -49,14 +49,25 @@ export async function lookup(
   const cacheKey = `lookup:${q}`;
 
   if (kv) {
-    const cached = (await kv.get(cacheKey, 'json')) as LookupResult | null;
-    if (cached) return cached;
+    try {
+      const cached = (await kv.get(cacheKey, 'json')) as LookupResult | null;
+      if (cached) return cached;
+    } catch (e) {
+      console.error('[lookup] KV get failed:', e);
+      // cache miss — continue to fetch
+    }
   }
 
   const search = await getText(doFetch, SEARCH_URL(q));
   if ('code' in search) return search;
 
-  const sr = parseSearchResults(search.html);
+  let sr: ReturnType<typeof parseSearchResults>;
+  try {
+    sr = parseSearchResults(search.html);
+  } catch (e) {
+    console.error('[lookup] search parse failed:', e);
+    return { error: "Couldn't read Pealim's search results", code: 'PARSE' };
+  }
   if (!sr) return { error: `No Pealim entry for "${q}"`, code: 'NO_RESULTS' };
 
   const result: LookupResult = {
@@ -71,11 +82,25 @@ export async function lookup(
   if (sr.isVerb) {
     const dictPage = await getText(doFetch, sr.dictUrl);
     if ('code' in dictPage) return dictPage;
-    const { binyan, conjugation } = parseDictPage(dictPage.html);
+    let parsed: ReturnType<typeof parseDictPage>;
+    try {
+      parsed = parseDictPage(dictPage.html);
+    } catch (e) {
+      console.error('[lookup] dict parse failed:', e);
+      return { error: "Couldn't read Pealim's conjugation page", code: 'PARSE' };
+    }
+    const { binyan, conjugation } = parsed;
     if (binyan) result.binyan = binyan;
     result.conjugation = conjugation;
   }
 
-  if (kv) await kv.put(cacheKey, JSON.stringify(result), { expirationTtl: TTL });
+  if (kv) {
+    try {
+      await kv.put(cacheKey, JSON.stringify(result), { expirationTtl: TTL });
+    } catch (e) {
+      console.error('[lookup] KV put failed:', e);
+      // cache write failure is non-fatal — return result anyway
+    }
+  }
   return result;
 }

@@ -62,6 +62,18 @@ describe('lookup', () => {
     expect(isError(r) && r.code).toBe('UPSTREAM');
   });
 
+  it('falls back to fetch when KV get throws', async () => {
+    const kv = {
+      get: async (): Promise<unknown> => { throw new Error('kv down'); },
+      put: async () => {},
+    };
+    const fetchImpl = fakeFetch({ '/search/': searchVerb, '/dict/255-levakesh/': dict });
+    const r = await lookup('לבקש', { kv, fetchImpl });
+    expect(isError(r)).toBe(false);
+    if (isError(r)) return;
+    expect(r.isVerb).toBe(true);
+  });
+
   it('serves from KV cache on the second call', async () => {
     const store = new Map<string, string>();
     const kv = {
