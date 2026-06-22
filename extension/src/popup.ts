@@ -3,12 +3,16 @@ import { type LookupResponse, type LookupResult, isLookupError } from './types';
 export const POPUP_CSS = `
 .pealim-popup {
   all: initial;
+  display: block;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 360px;
   font-family: -apple-system, "Segoe UI", Arial, sans-serif;
   direction: rtl; text-align: right;
-  background: #fff; color: #1a1a1a;
+  background: #ffffff; color: #1a1a1a;
   border: 1px solid #d0d0d0; border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,.18);
-  padding: 10px 12px; max-width: 360px; font-size: 15px; line-height: 1.4;
+  padding: 10px 12px; font-size: 15px; line-height: 1.4;
 }
 .pealim-popup .pealim-lemma { font-size: 20px; font-weight: 700; }
 .pealim-popup .pealim-translation { margin-top: 2px; color: #333; }
