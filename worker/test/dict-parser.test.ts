@@ -16,7 +16,8 @@ describe('parseDictPage', () => {
 
   it('reads passive voice (Pu\'al) with present/past/future, empty imperative/infinitive', () => {
     expect(voices?.passive?.binyan).toBe("Pu'al");
-    expect(bare(voices!.passive!.forms.present.ms)).toMatch(/מבוקש/);
+    expect(voices!.passive!.forms.present.ms).not.toBe(voices!.active!.forms.present.ms);
+    expect(bare(voices!.passive!.forms.present.ms)).toBe('מבקש');
     expect(voices!.passive!.forms.imperative['2ms']).toBe('');
     expect(voices!.passive!.forms.infinitive).toBe('');
   });

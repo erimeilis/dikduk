@@ -17,17 +17,6 @@ const IMP_IDS = { '2ms': 'IMP-2ms', '2fs': 'IMP-2fs', '2mp': 'IMP-2mp', '2fp': '
 function formById(root: HTMLElement, id: string): string {
   const cell = root.getElementById(id);
   if (!cell) return '';
-  // Prefer the chaser (bare Hebrew after ~) when present — passive Pu'al uses kubbutz
-  // (U+05BB) for /u/ which loses the vav mater lectionis when niqqud is stripped.
-  // The chaser span holds the unvoweled spelling with vav intact (e.g. מבוקש).
-  const chaser = cell.querySelector('.chaser');
-  if (chaser) {
-    return chaser.text
-      .replace(/^[\s~]+/, '')
-      .replace(/[​-‏‪-‮]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
   const menukad = cell.querySelector('.menukad');
   const raw = menukad?.text ?? cell.text;
   return raw
