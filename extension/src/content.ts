@@ -70,3 +70,25 @@ document.addEventListener('mousedown', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') dismiss();
 });
+
+// Context-menu lookups arrive as a 'render' message from the background worker.
+let lastPointer = { x: 0, y: 0 };
+document.addEventListener(
+  'contextmenu',
+  (e) => {
+    lastPointer = { x: e.clientX, y: e.clientY };
+  },
+  true,
+);
+
+chrome.runtime.onMessage.addListener((msg: { type?: string; data?: LookupResponse }) => {
+  if (msg?.type !== 'render' || !msg.data) return;
+  const sel = window.getSelection();
+  let anchor: DOMRect;
+  if (sel && sel.rangeCount > 0 && sel.toString().trim()) {
+    anchor = sel.getRangeAt(0).getBoundingClientRect();
+  } else {
+    anchor = new DOMRect(lastPointer.x, lastPointer.y, 0, 0);
+  }
+  showNode(renderPopup(msg.data), anchor);
+});
