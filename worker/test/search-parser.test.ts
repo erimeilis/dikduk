@@ -4,6 +4,7 @@ import { parseSearchResults } from '../src/search-parser';
 
 const verbHtml = readFileSync('test/fixtures/search-levakesh.html', 'utf-8');
 const adjHtml = readFileSync('test/fixtures/search-mevukash.html', 'utf-8');
+const qalHtml = readFileSync('test/fixtures/search-leechol.html', 'utf-8');
 
 describe('parseSearchResults', () => {
   it('parses a verb search result', () => {
@@ -16,6 +17,7 @@ describe('parseSearchResults', () => {
     expect(r!.translation.toLowerCase()).toMatch(/ask|request/);
     expect(r!.isVerb).toBe(true);
     expect(r!.dictUrl).toBe('https://www.pealim.com/dict/255-levakesh/');
+    expect(r!.binyan).toBe("Pi'el");
   });
 
   it('parses a non-verb (adjective) search result as isVerb=false', () => {
@@ -30,5 +32,13 @@ describe('parseSearchResults', () => {
 
   it('returns null when there is no result block', () => {
     expect(parseSearchResults('<html><body>nothing</body></html>')).toBeNull();
+  });
+
+  it('parses a Qal verb and reads its binyan from the search page', () => {
+    const r = parseSearchResults(qalHtml);
+    expect(r).not.toBeNull();
+    expect(r!.isVerb).toBe(true);
+    expect(r!.binyan).toBe("Pa'al");
+    expect(r!.root).toBe('א־כ־ל');
   });
 });

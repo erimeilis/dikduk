@@ -94,7 +94,8 @@ export async function lookup(
       console.error('[lookup] dict parse produced no Active-forms data for', sr.dictUrl);
       return { error: "Couldn't read Pealim's conjugation page", code: 'PARSE' };
     }
-    if (binyan) result.binyan = binyan;
+    const resolvedBinyan = binyan ?? sr.binyan;
+    if (resolvedBinyan) result.binyan = resolvedBinyan;
     result.conjugation = conjugation;
   }
 

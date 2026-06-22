@@ -33,11 +33,18 @@ export function parseSearchResults(html: string): SearchResult | null {
   const buttonText = first.querySelector('.verb-search-button')?.text ?? '';
   const isVerb = /full conjugation/i.test(buttonText);
 
+  let binyan: string | undefined;
+  if (isVerb) {
+    const bRaw = first.querySelector('.verb-search-binyan b')?.text?.trim();
+    if (bRaw) binyan = bRaw.toLowerCase().replace(/^./, (c) => c.toUpperCase()); // "PI'EL" -> "Pi'el"
+  }
+
   return {
     lemma,
     root: root_,
     translation,
     isVerb,
     dictUrl: href.startsWith('http') ? href : BASE + href,
+    binyan,
   };
 }

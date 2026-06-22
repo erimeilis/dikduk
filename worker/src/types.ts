@@ -38,4 +38,5 @@ export interface SearchResult {
   translation: string;
   isVerb: boolean;
   dictUrl: string;
+  binyan?: string;
 }

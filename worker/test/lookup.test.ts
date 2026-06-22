@@ -84,6 +84,21 @@ describe('lookup', () => {
     expect(isError(r) && r.code).toBe('PARSE');
   });
 
+  it('resolves binyan from the search page for a Qal verb (dict page has no Active-forms header)', async () => {
+    const searchQal = f('search-leechol.html');
+    const dictQal = f('dict-leechol.html');
+    const fetchImpl = (async (input: any) => {
+      const url = typeof input === 'string' ? input : input.url;
+      return new Response(url.includes('/dict/') ? dictQal : searchQal, { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = await lookup('לאכול', { fetchImpl });
+    expect(isError(r)).toBe(false);
+    if (isError(r)) return;
+    expect(r.isVerb).toBe(true);
+    expect(r.binyan).toBe("Pa'al");
+    expect(r.conjugation?.present.ms.length).toBeGreaterThan(0);
+  });
+
   it('serves from KV cache on the second call', async () => {
     const store = new Map<string, string>();
     const kv = {
