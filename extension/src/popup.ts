@@ -102,7 +102,12 @@ export function renderPopup(data: LookupResponse): HTMLElement {
 
   const src = el('div', 'pealim-source');
   const a = document.createElement('a');
-  a.href = data.sourceUrl; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Pealim ↗';
+  if (/^https?:\/\//i.test(data.sourceUrl)) {
+    a.href = data.sourceUrl;
+  }
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.textContent = 'Pealim ↗';
   src.appendChild(a);
   wrap.appendChild(src);
   return wrap;

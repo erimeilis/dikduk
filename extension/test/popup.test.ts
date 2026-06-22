@@ -47,4 +47,11 @@ describe('renderPopup', () => {
     expect(el.classList.contains('pealim-error')).toBe(true);
     expect(el.textContent).toContain('No Pealim entry');
   });
+
+  it('does not set a non-http(s) sourceUrl as the link href (XSS hardening)', () => {
+    const el = renderPopup({ ...adj, sourceUrl: 'javascript:alert(1)' });
+    const a = el.querySelector('a');
+    expect(a).not.toBeNull();
+    expect(a?.getAttribute('href')).toBeNull();
+  });
 });
