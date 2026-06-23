@@ -79,11 +79,11 @@ async function ensureOffscreen(): Promise<void> {
   });
 }
 
-async function sendToOffscreen(srcUrl: string): Promise<{ type: string; text?: string; message?: string }> {
+async function sendToOffscreen(buffer: ArrayBuffer, mime: string): Promise<{ type: string; text?: string; message?: string }> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      return await chrome.runtime.sendMessage({ type: 'ocr-image', srcUrl });
+      return await chrome.runtime.sendMessage({ type: 'ocr-image', buffer, mime });
     } catch (e) {
       lastErr = e; // offscreen listener not ready yet — brief backoff then retry
       await new Promise((r) => setTimeout(r, 100));
@@ -97,17 +97,28 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tabId = tab.id;
   try {
     await chrome.tabs.sendMessage(tabId, { type: 'ocr-loading' });
+
+    let buffer: ArrayBuffer;
+    let mime: string;
+    try {
+      const resp = await fetch(info.srcUrl);
+      if (!resp.ok) throw new Error(`image fetch returned ${resp.status}`);
+      buffer = await resp.arrayBuffer();
+      mime = resp.headers.get('content-type') || 'image/png';
+    } catch (e) {
+      console.error('[pealim] image fetch failed:', e);
+      await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message: "Couldn't load that image." });
+      return;
+    }
+
     await ensureOffscreen();
-    const res = await sendToOffscreen(info.srcUrl);
+    const res = await sendToOffscreen(buffer, mime);
     if (res?.type === 'ocr-result') {
       const words = extractHebrewWords(res.text ?? '');
       await chrome.tabs.sendMessage(tabId, { type: 'ocr-words', words });
     } else {
       console.error('[pealim] OCR failed in offscreen:', res?.message);
-      const message = /fetch|load|network|cors|http|404|not found/i.test(res?.message ?? '')
-        ? "Couldn't load that image."
-        : "Couldn't read the image.";
-      await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message });
+      await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message: "Couldn't read the image." });
     }
   } catch (e) {
     console.error('[pealim] OCR orchestration failed:', e);

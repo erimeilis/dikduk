@@ -18,14 +18,16 @@ function getWorker(): Promise<Worker> {
 }
 
 chrome.runtime.onMessage.addListener(
-  (msg: { type?: string; srcUrl?: string }, _sender, sendResponse) => {
-    if (msg?.type !== 'ocr-image' || !msg.srcUrl) return false;
-    const srcUrl = msg.srcUrl;
+  (msg: { type?: string; buffer?: ArrayBuffer; mime?: string }, _sender, sendResponse) => {
+    if (msg?.type !== 'ocr-image' || !msg.buffer) return false;
+    const buffer = msg.buffer;
+    const mime = msg.mime || 'image/png';
 
     void (async () => {
       try {
         const worker = await getWorker();
-        const { data } = await worker.recognize(srcUrl);
+        const blob = new Blob([buffer], { type: mime });
+        const { data } = await worker.recognize(blob);
         sendResponse({ type: 'ocr-result', text: data.text ?? '' });
       } catch (e) {
         console.error('[pealim] OCR failed:', e);
