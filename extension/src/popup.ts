@@ -32,6 +32,10 @@ export const POPUP_CSS = `
 .pealim-popup .pealim-source a { color: #2563eb; text-decoration: none; }
 .pealim-popup.pealim-error { color: #b00020; }
 .pealim-popup.pealim-loading { color: #666; }
+.pealim-popup .pealim-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pealim-popup .pealim-chip { all: unset; cursor: pointer; border: 1px solid #d0d0d0; border-radius: 6px; padding: 4px 10px; font-size: 16px; color: #1a1a1a; background: #f7f7f7; }
+.pealim-popup .pealim-chip:hover { background: #ececec; }
+.pealim-popup .pealim-ocr-empty { color: #666; }
 `;
 
 function el(tag: string, cls?: string, text?: string): HTMLElement {
@@ -150,5 +154,31 @@ export function renderLoading(word: string): HTMLElement {
   const wrap = el('div', 'pealim-popup pealim-loading');
   wrap.setAttribute('dir', 'rtl');
   wrap.appendChild(el('div', undefined, `…${word}`));
+  return wrap;
+}
+
+export function renderChips(words: string[]): HTMLElement {
+  const wrap = el('div', 'pealim-popup');
+  wrap.setAttribute('dir', 'rtl');
+  if (!words.length) {
+    wrap.appendChild(el('div', 'pealim-ocr-empty', 'No Hebrew text found in this image.'));
+    return wrap;
+  }
+  wrap.appendChild(el('div', 'pealim-meta', 'Tap a word:'));
+  const box = el('div', 'pealim-chips');
+  for (const w of words) {
+    const b = document.createElement('button');
+    b.className = 'pealim-chip';
+    b.dataset.word = w;
+    b.textContent = w;
+    box.appendChild(b);
+  }
+  wrap.appendChild(box);
+  return wrap;
+}
+
+export function renderOcrLoading(): HTMLElement {
+  const wrap = el('div', 'pealim-popup pealim-loading');
+  wrap.appendChild(el('div', undefined, 'Reading image…'));
   return wrap;
 }

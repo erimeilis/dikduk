@@ -47,10 +47,11 @@ extension/
 
 **Interfaces:** Consumes nothing new. Produces `extractHebrewWords(text: string): string[]` — whitespace-split tokens that contain a Hebrew letter, each trimmed of surrounding punctuation, deduped, original order preserved.
 
-- [ ] **Step 1: Create the feature branch**
+- [ ] **Step 1: Verify you are on the feature branch**
 ```bash
-cd /Volumes/Annette/IdeaProjects/pealim && git checkout -b feature/pealim-phase2-ocr
+cd /Volumes/Annette/IdeaProjects/pealim && git branch --show-current   # must print: feature/pealim-phase2-ocr
 ```
+The branch already exists and is checked out. Do NOT create a new branch or switch to `main`.
 
 - [ ] **Step 2: Write `extension/test/extract-hebrew-words.test.ts`**
 ```ts
