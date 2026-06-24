@@ -79,11 +79,25 @@ async function ensureOffscreen(): Promise<void> {
   });
 }
 
-async function sendToOffscreen(buffer: ArrayBuffer, mime: string): Promise<{ type: string; text?: string; message?: string }> {
+// chrome.runtime.sendMessage serializes as JSON, so an ArrayBuffer does NOT survive
+// the hop to the offscreen document (it arrives as {}). Send the image as a base64
+// data: URL string instead — JSON-safe, and Tesseract.recognize() decodes it natively.
+function bytesToDataUrl(buffer: ArrayBuffer, mime: string): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const CHUNK = 0x8000; // avoid call-stack overflow from spreading a large array
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  const baseMime = (mime.split(';')[0] || 'image/png').trim();
+  return `data:${baseMime};base64,${btoa(binary)}`;
+}
+
+async function sendToOffscreen(dataUrl: string): Promise<{ type: string; text?: string; message?: string }> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      return await chrome.runtime.sendMessage({ type: 'ocr-image', buffer, mime });
+      return await chrome.runtime.sendMessage({ type: 'ocr-image', dataUrl });
     } catch (e) {
       lastErr = e; // offscreen listener not ready yet — brief backoff then retry
       await new Promise((r) => setTimeout(r, 100));
@@ -112,7 +126,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 
     await ensureOffscreen();
-    const res = await sendToOffscreen(buffer, mime);
+    const res = await sendToOffscreen(bytesToDataUrl(buffer, mime));
     if (res?.type === 'ocr-result') {
       const words = extractHebrewWords(res.text ?? '');
       await chrome.tabs.sendMessage(tabId, { type: 'ocr-words', words });
