@@ -1,5 +1,7 @@
-// Hebrew combining marks (niqqud + cantillation; all Unicode Mn), excluding
-// the spacing punctuation at U+05BE/05C0/05C3/05C6 which tokenization handles.
+// Strip all Hebrew combining marks — niqqud + cantillation (U+0591–U+05C7).
+// That range also contains the spacing-punctuation MAQAF (U+05BE), PASEQ
+// (U+05C0), SOF PASUQ (U+05C3) and NUN HAFUKHA (U+05C6); these are stripped
+// too, which is acceptable here — the dictionary stage works on bare letters.
 const COMBINING = /[֑-ׇֽֿׁׂׅׄ]/g;
 const ZERO_WIDTH = /[​-‏‪-‮⁠﻿]/g;
 // A token: a Hebrew letter followed by more letters / marks / in-word symbols.
