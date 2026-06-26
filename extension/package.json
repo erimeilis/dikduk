@@ -11,7 +11,7 @@
   "type": "module",
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-or-later",
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.0",
     "@types/chrome": "^0.2.0",
@@ -21,6 +21,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
+    "nspell": "^2.1.5",
     "tesseract.js": "^7.0.0",
     "tesseract.js-core": "^7.0.0"
   }

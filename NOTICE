@@ -1,0 +1,11 @@
+Pealim Hebrew Lookup
+Copyright (C) 2026
+
+This program is free software: licensed under the GNU Affero General Public
+License v3.0. See LICENSE.
+
+Hebrew spelling dictionary derived from the Hspell project
+(http://hspell.ivrix.org.il/), Copyright (C) 2000-2017 Nadav Har'El and
+Dan Kenigsberg, licensed under the GNU AGPL v3. The dictionary files and
+generated word lists are also under the AGPL.
+nspell (https://github.com/wooorm/nspell) Copyright (C) Titus Wormer, MIT.
