@@ -18,8 +18,9 @@ build/
 # Editor / IDE
 .idea/
 
-# Claude local settings
-.claude/settings.local.json
+# Local agent artifacts
+.claude/
+docs/superpowers/
 
 # Superpowers SDD scratch (briefs, reports, diffs, ledger)
 .superpowers/
