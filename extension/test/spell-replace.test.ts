@@ -30,5 +30,13 @@ describe('replaceInRange', () => {
     replaceInRange(range, 'שלום');
     expect(div.textContent).toBe('שלום');
     expect(onInput).toHaveBeenCalledOnce();
+    const sel = window.getSelection()!;
+    expect(sel.rangeCount).toBe(1);
+    const r = sel.getRangeAt(0);
+    expect(r.collapsed).toBe(true);
+    expect(r.startContainer).toBe(div);
+    // happy-dom does not normalize adjacent empty text nodes left by deleteContents(),
+    // so the inserted text node is child[1]; setStartAfter(child[1]) → startOffset 2
+    expect(r.startOffset).toBe(2);
   });
 });
