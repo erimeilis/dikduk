@@ -71,6 +71,28 @@ export class SpellController {
     if (cb) { this.pending.delete(m.id); cb(m); }
   }
 
+  suggest(word: string): Promise<string[]> {
+    return new Promise((resolve) => {
+      if (!this.ready) return resolve([]);
+      const id = ++this.reqId;
+      const timer = window.setTimeout(() => {
+        if (this.pending.delete(id)) {
+          console.warn('[pealim] spell suggest timed out; returning empty suggestions');
+          resolve([]);
+        }
+      }, 5000);
+      this.pending.set(id, (m) => {
+        window.clearTimeout(timer);
+        resolve(m.type === 'suggested' ? m.suggestions : []);
+      });
+      this.post({ type: 'suggest', id, word });
+    });
+  }
+
+  ignoreWord(word: string): void {
+    this.ignore.add(word);
+  }
+
   private check(tokens: string[]): Promise<string[]> {
     return new Promise((resolve) => {
       const id = ++this.reqId;

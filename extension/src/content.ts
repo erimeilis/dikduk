@@ -2,6 +2,13 @@ import { containsHebrew, extractWord } from './hebrew';
 import { computePosition } from './position';
 import { renderPopup, renderLoading, renderChips, renderOcrLoading, POPUP_CSS } from './popup';
 import type { LookupResponse } from './types';
+import { SpellController } from './spellcheck/controller';
+import { renderSuggestions } from './spellcheck/suggest-popup';
+import { replaceInTextField } from './spellcheck/replace';
+import { addUserWord } from './spellcheck/userdict';
+
+const spell = new SpellController();
+void spell.start();
 
 let host: HTMLDivElement | null = null;
 let shadow: ShadowRoot | null = null;
@@ -117,4 +124,35 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; words?: string[]; me
     const anchor = lastAnchor ?? new DOMRect(lastPointer.x, lastPointer.y, 0, 0);
     showNode(renderPopup({ error: msg.message ?? 'OCR failed', code: 'UPSTREAM' }), anchor);
   }
+});
+
+document.addEventListener('click', async (e) => {
+  const mark = (e.target as HTMLElement | null)?.closest('.pealim-misspell') as HTMLElement | null;
+  if (!mark) return;
+  e.preventDefault();
+  const word = mark.textContent ?? '';
+  const rect = mark.getBoundingClientRect();
+  const sugg = await spell.suggest(word); // see Step 3
+  const node = renderSuggestions(word, sugg);
+  showNode(node, rect);
+  // wire actions inside the shadow popup
+  node.addEventListener('click', (ev) => {
+    const t = (ev as MouseEvent).target as HTMLElement;
+    const pick = t.closest('button[data-suggest]') as HTMLElement | null;
+    const act = t.closest('button[data-action]') as HTMLElement | null;
+    if (pick) {
+      const replacement = pick.dataset.suggest!;
+      const field = document.activeElement;
+      if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+        replaceInTextField(field, Number(mark.dataset.start), Number(mark.dataset.end), replacement);
+      }
+      dismiss();
+    } else if (act?.dataset.action === 'lookup') {
+      void lookupAndShow(word, rect);
+    } else if (act?.dataset.action === 'add') {
+      void addUserWord(word); dismiss();
+    } else if (act?.dataset.action === 'ignore') {
+      spell.ignoreWord(word); dismiss();
+    }
+  });
 });
