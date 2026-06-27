@@ -41,6 +41,10 @@ export class OverlayRenderer {
       span.textContent = v.slice(r.start, r.end);
       span.dataset.start = String(r.start);
       span.dataset.end = String(r.end);
+      span.style.textDecorationLine = 'underline';
+      span.style.textDecorationStyle = 'wavy';
+      span.style.textDecorationColor = '#d11';
+      span.style.textUnderlineOffset = '2px';
       this.overlayEl.appendChild(span);
       cursor = r.end;
     }

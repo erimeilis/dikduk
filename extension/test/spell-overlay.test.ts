@@ -11,6 +11,9 @@ describe('OverlayRenderer', () => {
     const marks = r.overlayEl.querySelectorAll('.pealim-misspell');
     expect(marks.length).toBe(1);
     expect(marks[0].textContent).toBe('שלוום');
+    expect((marks[0] as HTMLElement).style.textDecorationLine).toBe('underline');
+    expect((marks[0] as HTMLElement).style.textDecorationStyle).toBe('wavy');
+    expect((marks[0] as HTMLElement).style.textDecorationColor).toBe('#d11');
     r.clear();
     expect(r.overlayEl.querySelectorAll('.pealim-misspell').length).toBe(0);
   });

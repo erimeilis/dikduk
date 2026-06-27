@@ -1,4 +1,6 @@
 import { createWorker, type Worker } from 'tesseract.js';
+import type { SpellCheckOsRequest, SpellSuggestOsRequest } from './spellcheck/protocol';
+import { createDictionaryEngine, type SpellEngine } from './spellcheck/engine';
 
 let workerPromise: Promise<Worker> | null = null;
 
@@ -40,5 +42,51 @@ chrome.runtime.onMessage.addListener(
     })();
 
     return true; // keep the message channel open for the async sendResponse
+  },
+);
+
+// --- Hebrew spell engine (Hspell dictionary) ----------------------------------
+// Loaded once in the offscreen document (extension origin), shared across tabs.
+let spellPromise: Promise<SpellEngine> | null = null;
+
+function getSpell(): Promise<SpellEngine> {
+  if (!spellPromise) {
+    spellPromise = (async () => {
+      const [aff, dic] = await Promise.all([
+        fetch(chrome.runtime.getURL('spelldata/he.aff')).then((r) => r.text()),
+        fetch(chrome.runtime.getURL('spelldata/he.dic')).then((r) => r.text()),
+      ]);
+      return createDictionaryEngine(aff, dic);
+    })().catch((err: unknown) => {
+      spellPromise = null; // allow a later message to retry initialisation
+      throw err;
+    });
+  }
+  return spellPromise;
+}
+
+chrome.runtime.onMessage.addListener(
+  (msg: SpellCheckOsRequest | SpellSuggestOsRequest | { type?: string }, _sender, sendResponse) => {
+    if (msg?.type === 'spell-check-os') {
+      const { tokens } = msg as SpellCheckOsRequest;
+      getSpell()
+        .then((s) => sendResponse({ misspelled: s.check(tokens) }))
+        .catch((e: unknown) => {
+          console.error('[pealim] spell check (offscreen) failed:', e);
+          sendResponse({ error: e instanceof Error ? e.message : String(e) });
+        });
+      return true;
+    }
+    if (msg?.type === 'spell-suggest-os') {
+      const { word } = msg as SpellSuggestOsRequest;
+      getSpell()
+        .then((s) => sendResponse({ suggestions: s.suggest(word).slice(0, 6) }))
+        .catch((e: unknown) => {
+          console.error('[pealim] spell suggest (offscreen) failed:', e);
+          sendResponse({ error: e instanceof Error ? e.message : String(e) });
+        });
+      return true;
+    }
+    return false;
   },
 );

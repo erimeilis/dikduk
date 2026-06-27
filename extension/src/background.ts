@@ -2,6 +2,7 @@ import { WORKER_URL } from './config';
 import { cacheKeyFor } from './cache-key';
 import type { LookupResponse, LookupMessage, RenderMessage } from './types';
 import { containsHebrew, extractWord, extractHebrewWords } from './hebrew';
+import type { SpellCheckRequest, SpellSuggestRequest, SpellResult } from './spellcheck/protocol';
 
 async function fetchLookup(word: string): Promise<LookupResponse> {
   const key = cacheKeyFor(word);
@@ -143,3 +144,38 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
   }
 });
+
+// Spell engine lives in the offscreen document (content scripts can't construct a
+// cross-origin Worker). Relay the content script's request through it.
+async function forwardToOffscreen(osMsg: object): Promise<SpellResult> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return (await chrome.runtime.sendMessage(osMsg)) as SpellResult;
+    } catch (e) {
+      lastErr = e; // offscreen listener not ready yet — brief backoff then retry
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  throw lastErr;
+}
+
+chrome.runtime.onMessage.addListener(
+  (msg: SpellCheckRequest | SpellSuggestRequest | { type?: string }, _sender, sendResponse) => {
+    if (msg?.type !== 'spell-check' && msg?.type !== 'spell-suggest') return false;
+    void (async () => {
+      try {
+        await ensureOffscreen();
+        const osMsg =
+          msg.type === 'spell-check'
+            ? { type: 'spell-check-os', tokens: (msg as SpellCheckRequest).tokens }
+            : { type: 'spell-suggest-os', word: (msg as SpellSuggestRequest).word };
+        sendResponse(await forwardToOffscreen(osMsg));
+      } catch (e) {
+        console.error('[pealim] spell relay failed:', e);
+        sendResponse({ error: e instanceof Error ? e.message : String(e) });
+      }
+    })();
+    return true; // keep the channel open for the async sendResponse
+  },
+);
