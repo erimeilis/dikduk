@@ -36,9 +36,12 @@ export const POPUP_CSS = `
 .pealim-popup .pealim-chip { all: unset; cursor: pointer; border: 1px solid #d0d0d0; border-radius: 6px; padding: 4px 10px; font-size: 16px; color: #1a1a1a; background: #f7f7f7; }
 .pealim-popup .pealim-chip:hover { background: #ececec; }
 .pealim-popup .pealim-ocr-empty { color: #666; }
+.pealim-popup .pealim-spell-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px; }
+.pealim-popup .pealim-spell-action { all: unset; cursor: pointer; font-size: 12px; color: #2563eb; }
+.pealim-popup .pealim-spell-action:hover { text-decoration: underline; }
 `;
 
-function el(tag: string, cls?: string, text?: string): HTMLElement {
+export function el(tag: string, cls?: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
   if (text !== undefined) node.textContent = text;
