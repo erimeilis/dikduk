@@ -74,7 +74,16 @@ export class SpellController {
   private check(tokens: string[]): Promise<string[]> {
     return new Promise((resolve) => {
       const id = ++this.reqId;
-      this.pending.set(id, (m) => resolve(m.type === 'checked' ? m.misspelled : []));
+      const timer = window.setTimeout(() => {
+        if (this.pending.delete(id)) {
+          console.warn('[pealim] spell check timed out; skipping this pass');
+          resolve([]);
+        }
+      }, 5000);
+      this.pending.set(id, (m) => {
+        window.clearTimeout(timer);
+        resolve(m.type === 'checked' ? m.misspelled : []);
+      });
       this.post({ type: 'check', id, tokens });
     });
   }
