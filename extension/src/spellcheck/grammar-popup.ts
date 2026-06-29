@@ -10,30 +10,30 @@ const TITLES: Record<string, string> = {
 };
 
 export function renderGrammarIssue(issue: GrammarIssue, text: string): HTMLElement {
-  const wrap = el('div', 'pealim-popup pealim-grammar-popup');
+  const wrap = el('div', 'dikduk-popup dikduk-grammar-popup');
   wrap.setAttribute('dir', 'rtl');
 
   const phrase = text.slice(issue.start, issue.end);
-  wrap.appendChild(el('div', 'pealim-lemma', phrase || issue.id));
-  wrap.appendChild(el('div', 'pealim-translation', TITLES[issue.id] ?? issue.message));
-  wrap.appendChild(el('div', 'pealim-meta', issue.message));
+  wrap.appendChild(el('div', 'dikduk-lemma', phrase || issue.id));
+  wrap.appendChild(el('div', 'dikduk-translation', TITLES[issue.id] ?? issue.message));
+  wrap.appendChild(el('div', 'dikduk-meta', issue.message));
 
   if (issue.evidence) {
-    wrap.appendChild(el('div', 'pealim-grammar-evidence', issue.evidence));
+    wrap.appendChild(el('div', 'dikduk-grammar-evidence', issue.evidence));
   }
 
   const replacements = hebrewReplacements(issue);
   if (replacements.length) {
-    const box = el('div', 'pealim-grammar-replacements');
+    const box = el('div', 'dikduk-grammar-replacements');
     box.appendChild(el(
       'div',
-      'pealim-grammar-suggestions-title',
+      'dikduk-grammar-suggestions-title',
       replacements.length === 1 ? 'Hebrew suggestion' : 'Hebrew suggestions',
     ));
     for (const replacement of replacements) {
       const item = el(
         'div',
-        'pealim-grammar-replacement',
+        'dikduk-grammar-replacement',
         replacement.label ? `${replacement.label}: ${replacement.value}` : replacement.value,
       );
       item.setAttribute('dir', 'auto');
@@ -43,17 +43,17 @@ export function renderGrammarIssue(issue: GrammarIssue, text: string): HTMLEleme
   }
 
   if (issue.hint) {
-    const hint = el('div', 'pealim-grammar-hint', issue.hint);
+    const hint = el('div', 'dikduk-grammar-hint', issue.hint);
     hint.setAttribute('dir', 'auto');
     wrap.appendChild(hint);
   }
 
   const suggestions = issue.suggestions?.filter(Boolean).slice(0, 3) ?? [];
   if (suggestions.length) {
-    const box = el('div', 'pealim-grammar-suggestions');
-    box.appendChild(el('div', 'pealim-grammar-suggestions-title', 'Suggestions'));
+    const box = el('div', 'dikduk-grammar-suggestions');
+    box.appendChild(el('div', 'dikduk-grammar-suggestions-title', 'Suggestions'));
     for (const suggestion of suggestions) {
-      const item = el('div', 'pealim-grammar-suggestion', suggestion);
+      const item = el('div', 'dikduk-grammar-suggestion', suggestion);
       item.setAttribute('dir', 'auto');
       box.appendChild(item);
     }

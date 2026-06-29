@@ -18,7 +18,7 @@ export interface LookupDeps {
 }
 
 const SEARCH_URL = (q: string) => `https://www.pealim.com/search/?q=${encodeURIComponent(q)}`;
-const UA = 'Mozilla/5.0 (compatible; PealimLookupExtension/1.0; +https://www.pealim.com)';
+const UA = 'Mozilla/5.0 (compatible; DikDuk/1.0; +https://www.pealim.com)';
 const TTL = 2592000; // 30 days
 
 export function isError(r: LookupResult | LookupError): r is LookupError {

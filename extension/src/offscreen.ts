@@ -33,7 +33,7 @@ chrome.runtime.onMessage.addListener(
         const { data } = await worker.recognize(dataUrl);
         sendResponse({ type: 'ocr-result', text: data.text ?? '' });
       } catch (e) {
-        console.error('[pealim] OCR failed:', e);
+        console.error('[dikduk] OCR failed:', e);
         sendResponse({
           type: 'ocr-failed',
           message: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
@@ -72,7 +72,7 @@ chrome.runtime.onMessage.addListener(
       getSpell()
         .then((s) => sendResponse({ misspelled: s.check(tokens) }))
         .catch((e: unknown) => {
-          console.error('[pealim] spell check (offscreen) failed:', e);
+          console.error('[dikduk] spell check (offscreen) failed:', e);
           sendResponse({ error: e instanceof Error ? e.message : String(e) });
         });
       return true;
@@ -82,7 +82,7 @@ chrome.runtime.onMessage.addListener(
       getSpell()
         .then((s) => sendResponse({ suggestions: s.suggest(word).slice(0, 6) }))
         .catch((e: unknown) => {
-          console.error('[pealim] spell suggest (offscreen) failed:', e);
+          console.error('[dikduk] spell suggest (offscreen) failed:', e);
           sendResponse({ error: e instanceof Error ? e.message : String(e) });
         });
       return true;

@@ -28,7 +28,7 @@ describe('renderGrammarIssue', () => {
     expect(node.textContent).toContain('Present: אומרת');
     expect(node.textContent).toContain('Use a third-person feminine singular verb form');
     expect(node.textContent).toContain('If אמרת is intended');
-    expect(node.querySelectorAll('.pealim-grammar-replacement')).toHaveLength(2);
-    expect(node.querySelectorAll('.pealim-grammar-suggestion')).toHaveLength(1);
+    expect(node.querySelectorAll('.dikduk-grammar-replacement')).toHaveLength(2);
+    expect(node.querySelectorAll('.dikduk-grammar-suggestion')).toHaveLength(1);
   });
 });

@@ -17,7 +17,7 @@ async function fetchLookup(word: string): Promise<LookupResponse> {
     const cached = await chrome.storage.local.get(key);
     if (cached[key]) return cached[key] as LookupResponse;
   } catch (e) {
-    console.error('[pealim] storage read failed:', e);
+    console.error('[dikduk] storage read failed:', e);
   }
 
   try {
@@ -27,12 +27,12 @@ async function fetchLookup(word: string): Promise<LookupResponse> {
       try {
         await chrome.storage.local.set({ [key]: data });
       } catch (e) {
-        console.error('[pealim] storage write failed:', e);
+        console.error('[dikduk] storage write failed:', e);
       }
     }
     return data;
   } catch (e) {
-    console.error('[pealim] worker fetch failed:', e);
+    console.error('[dikduk] worker fetch failed:', e);
     return { error: `Lookup failed: ${(e as Error).message}`, code: 'UPSTREAM' };
   }
 }
@@ -68,8 +68,8 @@ chrome.runtime.onMessage.addListener((msg: GrammarAnalyzeRequest | { type?: stri
   return true; // keep the message channel open for the async response
 });
 
-const MENU_ID = 'pealim-lookup';
-const IMAGE_MENU_ID = 'pealim-ocr-image';
+const MENU_ID = 'dikduk-lookup';
+const IMAGE_MENU_ID = 'dikduk-ocr-image';
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
@@ -97,7 +97,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     const message: RenderMessage = { type: 'render', data };
     await chrome.tabs.sendMessage(tab.id, message);
   } catch (e) {
-    console.error('[pealim] could not deliver lookup result to tab:', e);
+    console.error('[dikduk] could not deliver lookup result to tab:', e);
   }
 });
 
@@ -152,7 +152,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       buffer = await resp.arrayBuffer();
       mime = resp.headers.get('content-type') || 'image/png';
     } catch (e) {
-      console.error('[pealim] image fetch failed:', e);
+      console.error('[dikduk] image fetch failed:', e);
       await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message: "Couldn't load that image." });
       return;
     }
@@ -163,15 +163,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       const words = extractHebrewWords(res.text ?? '');
       await chrome.tabs.sendMessage(tabId, { type: 'ocr-words', words });
     } else {
-      console.error('[pealim] OCR failed in offscreen:', res?.message);
+      console.error('[dikduk] OCR failed in offscreen:', res?.message);
       await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message: "Couldn't read the image." });
     }
   } catch (e) {
-    console.error('[pealim] OCR orchestration failed:', e);
+    console.error('[dikduk] OCR orchestration failed:', e);
     try {
       await chrome.tabs.sendMessage(tabId, { type: 'ocr-error', message: "Couldn't read the image." });
     } catch (e2) {
-      console.error('[pealim] could not notify tab of OCR error:', e2);
+      console.error('[dikduk] could not notify tab of OCR error:', e2);
     }
   }
 });
@@ -203,7 +203,7 @@ chrome.runtime.onMessage.addListener(
             : { type: 'spell-suggest-os', word: (msg as SpellSuggestRequest).word };
         sendResponse(await forwardToOffscreen(osMsg));
       } catch (e) {
-        console.error('[pealim] spell relay failed:', e);
+        console.error('[dikduk] spell relay failed:', e);
         sendResponse({ error: e instanceof Error ? e.message : String(e) });
       }
     })();

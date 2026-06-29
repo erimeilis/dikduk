@@ -25,7 +25,7 @@ function ensureHost(): ShadowRoot {
   style.textContent = POPUP_CSS;
   shadow.appendChild(style);
   shadow.addEventListener('click', (e) => {
-    const target = (e.target as HTMLElement | null)?.closest('.pealim-seealso-link, .pealim-chip') as HTMLElement | null;
+    const target = (e.target as HTMLElement | null)?.closest('.dikduk-seealso-link, .dikduk-chip') as HTMLElement | null;
     if (!target) return;
     e.preventDefault();
     const word = target.dataset.word;
@@ -45,7 +45,7 @@ function dismiss(): void {
 
 function showNode(node: HTMLElement, anchor: DOMRect): void {
   const root = ensureHost();
-  root.querySelectorAll('.pealim-popup').forEach((n) => n.remove());
+  root.querySelectorAll('.dikduk-popup').forEach((n) => n.remove());
   root.appendChild(node);
 
   const size = node.getBoundingClientRect();
@@ -65,7 +65,7 @@ async function lookupAndShow(word: string, anchor: DOMRect): Promise<void> {
     const data = (await chrome.runtime.sendMessage({ type: 'lookup', word })) as LookupResponse;
     showNode(renderPopup(data), anchor);
   } catch (e) {
-    console.error('[pealim] messaging failed:', e);
+    console.error('[dikduk] messaging failed:', e);
     showNode(renderPopup({ error: `Lookup failed: ${(e as Error).message}`, code: 'UPSTREAM' }), anchor);
   }
 }

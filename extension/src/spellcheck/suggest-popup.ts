@@ -1,28 +1,28 @@
 import { el } from '../popup';
 
 export function renderSuggestions(word: string, suggestions: string[]): HTMLElement {
-  const wrap = el('div', 'pealim-popup');
+  const wrap = el('div', 'dikduk-popup');
   wrap.setAttribute('dir', 'rtl');
-  wrap.appendChild(el('div', 'pealim-meta', `"${word}"`));
+  wrap.appendChild(el('div', 'dikduk-meta', `"${word}"`));
 
   if (suggestions.length) {
-    const box = el('div', 'pealim-chips');
+    const box = el('div', 'dikduk-chips');
     for (const s of suggestions) {
       const b = document.createElement('button');
-      b.className = 'pealim-chip';
+      b.className = 'dikduk-chip';
       b.dataset.suggest = s;
       b.textContent = s;
       box.appendChild(b);
     }
     wrap.appendChild(box);
   } else {
-    wrap.appendChild(el('div', 'pealim-ocr-empty', 'No suggestions'));
+    wrap.appendChild(el('div', 'dikduk-ocr-empty', 'No suggestions'));
   }
 
-  const actions = el('div', 'pealim-spell-actions');
+  const actions = el('div', 'dikduk-spell-actions');
   const mk = (action: string, label: string): HTMLButtonElement => {
     const b = document.createElement('button');
-    b.className = 'pealim-spell-action';
+    b.className = 'dikduk-spell-action';
     b.dataset.action = action;
     b.textContent = label;
     return b;

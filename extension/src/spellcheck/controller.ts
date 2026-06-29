@@ -88,7 +88,7 @@ export class SpellController {
       } satisfies SpellCheckRequest)) as SpellResult | undefined;
       return res && 'misspelled' in res ? res.misspelled : [];
     } catch (e) {
-      console.error('[pealim] spell check failed:', e);
+      console.error('[dikduk] spell check failed:', e);
       return [];
     }
   }
@@ -101,7 +101,7 @@ export class SpellController {
       } satisfies GrammarAnalyzeRequest)) as GrammarResult | undefined;
       return res && 'issues' in res ? res.issues.filter((issue) => isValidIssue(issue, text.length)) : [];
     } catch (e) {
-      console.error('[pealim] grammar analyze failed:', e);
+      console.error('[dikduk] grammar analyze failed:', e);
       return [];
     }
   }
@@ -114,7 +114,7 @@ export class SpellController {
       } satisfies SpellSuggestRequest)) as SpellResult | undefined;
       return res && 'suggestions' in res ? res.suggestions : [];
     } catch (e) {
-      console.error('[pealim] spell suggest failed:', e);
+      console.error('[dikduk] spell suggest failed:', e);
       return [];
     }
   }
@@ -220,7 +220,7 @@ export class SpellController {
       ov.mark([...flagged.map(tokenToRange), ...grammarRanges]);
     } else {
       window.dispatchEvent(
-        new CustomEvent('pealim-spell-flags', {
+        new CustomEvent('dikduk-spell-flags', {
           detail: {
             offsets: flagged.map((t) => ({ start: t.start, end: t.end })),
             grammarOffsets: grammarRanges.map((t) => ({ start: t.start, end: t.end })),

@@ -55,7 +55,7 @@ describe('renderPopup accordion', () => {
     const links = Array.from(see.querySelectorAll('a')).map((a) => a.getAttribute('href'));
     expect(links).toContain('https://www.pealim.com/dict/3000-bakasha/');
     // Exclusive accordion: every <details> shares the same name attribute
-    expect(Array.from(el.querySelectorAll('details')).every((d) => d.getAttribute('name') === 'pealim-accordion')).toBe(true);
+    expect(Array.from(el.querySelectorAll('details')).every((d) => d.getAttribute('name') === 'dikduk-accordion')).toBe(true);
     // See-also links carry data-word for in-popup lookup
     expect(see.querySelector('a')?.getAttribute('data-word')).toBe('בַּקָּשָׁה');
   });
@@ -82,14 +82,14 @@ describe('renderPopup accordion', () => {
 
   it('does not set a non-http(s) sourceUrl as the link href (XSS guard)', () => {
     const el = renderPopup({ ...noun, sourceUrl: 'javascript:alert(1)' });
-    const a = el.querySelector('.pealim-source a');
+    const a = el.querySelector('.dikduk-source a');
     expect(a).not.toBeNull();
     expect(a?.getAttribute('href')).toBeNull();
   });
 
   it('renders an error', () => {
     const el = renderPopup({ error: 'No Pealim entry for «xyz»', code: 'NO_RESULTS' });
-    expect(el.classList.contains('pealim-error')).toBe(true);
+    expect(el.classList.contains('dikduk-error')).toBe(true);
     expect(el.textContent).toContain('No Pealim entry');
   });
 });
@@ -98,14 +98,14 @@ describe('renderChips', () => {
   it('renders one button per word, carrying the word in data-word', () => {
     const el = renderChips(['שלום', 'לבקש']);
     expect(el.getAttribute('dir')).toBe('rtl');
-    const chips = el.querySelectorAll('button.pealim-chip');
+    const chips = el.querySelectorAll('button.dikduk-chip');
     expect(chips.length).toBe(2);
     expect(chips[0].getAttribute('data-word')).toBe('שלום');
     expect(chips[0].textContent).toBe('שלום');
   });
   it('shows a no-results message for an empty list', () => {
     const el = renderChips([]);
-    expect(el.querySelector('button.pealim-chip')).toBeNull();
+    expect(el.querySelector('button.dikduk-chip')).toBeNull();
     expect(el.textContent).toContain('No Hebrew');
   });
 });
@@ -113,7 +113,7 @@ describe('renderChips', () => {
 describe('renderOcrLoading', () => {
   it('renders a reading state', () => {
     const el = renderOcrLoading();
-    expect(el.classList.contains('pealim-loading')).toBe(true);
+    expect(el.classList.contains('dikduk-loading')).toBe(true);
     expect(el.textContent).toContain('Reading image');
   });
 });

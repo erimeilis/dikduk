@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Pealim Hebrew Lookup",
+  "name": "DikDuk",
   "version": "1.0.0",
-  "description": "Double-click a Hebrew word to see its translation, root, and verb conjugation from Pealim.",
+  "description": "Hebrew lookup, spell-check & grammar hints. Double-click a word for translation, root & conjugation. Data from Pealim.",
   "permissions": ["storage", "contextMenus", "offscreen"],
   "host_permissions": ["http://localhost:8787/*", "https://pealim-lookup.admice.workers.dev/*", "<all_urls>"],
   "content_security_policy": { "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'" },

@@ -21,14 +21,14 @@ function locate(host: Node, offset: number): { node: Text; offset: number } | nu
   return null;
 }
 
-const STYLE_ID = 'pealim-misspell-style';
+const STYLE_ID = 'dikduk-misspell-style';
 function ensureStyle(): void {
   if (document.getElementById(STYLE_ID)) return;
   const s = document.createElement('style');
   s.id = STYLE_ID;
   s.textContent = [
-    '::highlight(pealim-misspelled){ text-decoration: red wavy underline; }',
-    '::highlight(pealim-grammar){ text-decoration: #c56a00 wavy underline; }',
+    '::highlight(dikduk-misspelled){ text-decoration: red wavy underline; }',
+    '::highlight(dikduk-grammar){ text-decoration: #c56a00 wavy underline; }',
   ].join('\n');
   document.head.appendChild(s);
 }
@@ -55,19 +55,19 @@ function rangesFor(host: HTMLElement, offsets: Array<{ start: number; end: numbe
 function install(): void {
   if (typeof Highlight === 'undefined' || !('highlights' in CSS)) return; // overlay fallback handles it
   ensureStyle();
-  window.addEventListener('pealim-spell-flags', (ev: Event) => {
+  window.addEventListener('dikduk-spell-flags', (ev: Event) => {
     const detail = (ev as CustomEvent<FlagDetail>).detail;
     const host = document.activeElement as HTMLElement | null;
     if (!host || !detail) {
-      CSS.highlights.delete('pealim-misspelled');
+      CSS.highlights.delete('dikduk-misspelled');
       return;
     }
     const spellRanges = rangesFor(host, detail.offsets ?? []);
     const grammarRanges = rangesFor(host, detail.grammarOffsets ?? []);
-    if (spellRanges.length) CSS.highlights.set('pealim-misspelled', new Highlight(...spellRanges));
-    else CSS.highlights.delete('pealim-misspelled');
-    if (grammarRanges.length) CSS.highlights.set('pealim-grammar', new Highlight(...grammarRanges));
-    else CSS.highlights.delete('pealim-grammar');
+    if (spellRanges.length) CSS.highlights.set('dikduk-misspelled', new Highlight(...spellRanges));
+    else CSS.highlights.delete('dikduk-misspelled');
+    if (grammarRanges.length) CSS.highlights.set('dikduk-grammar', new Highlight(...grammarRanges));
+    else CSS.highlights.delete('dikduk-grammar');
   });
 }
 

@@ -51,7 +51,7 @@ TOKENIZER, MODEL = load_dictabert()
 
 
 class AnalyzerHandler(BaseHTTPRequestHandler):
-    server_version = "PealimDictaBERT/0.1"
+    server_version = "DikDukDictaBERT/0.1"
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)

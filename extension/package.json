@@ -1,7 +1,7 @@
 {
   "name": "extension",
   "version": "1.0.0",
-  "description": "Double-click a Hebrew word to see its translation, root, and verb conjugation from Pealim.",
+  "description": "Hebrew lookup, spell-check & grammar hints. Double-click a word for translation, root & conjugation. Data from Pealim.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

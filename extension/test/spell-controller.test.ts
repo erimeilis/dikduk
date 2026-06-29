@@ -121,7 +121,7 @@ describe('SpellController flag hit detection', () => {
     controller.rescan(textarea);
     await vi.advanceTimersByTimeAsync(500);
 
-    const mark = document.querySelector('.pealim-grammar') as HTMLElement | null;
+    const mark = document.querySelector('.dikduk-grammar') as HTMLElement | null;
     expect(mark?.textContent).toBe('הספר טובה');
     expect(mark?.style.textDecorationColor).toBe('#c56a00');
   });
@@ -196,8 +196,8 @@ describe('SpellController flag hit detection', () => {
     controller.rescan(input);
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(document.querySelector('.pealim-misspell')?.textContent).toBe('אומת');
-    expect(document.querySelector('.pealim-grammar')).toBeNull();
+    expect(document.querySelector('.dikduk-misspell')?.textContent).toBe('אומת');
+    expect(document.querySelector('.dikduk-grammar')).toBeNull();
 
     input.setSelectionRange(5, 5);
     let grammarHit = null as ReturnType<typeof controller.findGrammarAtClick>;

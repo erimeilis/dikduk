@@ -47,7 +47,7 @@ export class OverlayRenderer {
       this.overlayEl.appendChild(document.createTextNode(v.slice(cursor, r.start)));
       const span = document.createElement('span');
       const kind = r.kind ?? 'spell';
-      span.className = kind === 'grammar' ? 'pealim-grammar' : 'pealim-misspell';
+      span.className = kind === 'grammar' ? 'dikduk-grammar' : 'dikduk-misspell';
       span.textContent = v.slice(r.start, r.end);
       span.dataset.start = String(r.start);
       span.dataset.end = String(r.end);

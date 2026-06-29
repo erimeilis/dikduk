@@ -3,6 +3,6 @@ import { cacheKeyFor } from '../src/cache-key';
 
 describe('cacheKeyFor', () => {
   it('namespaces and trims the word', () => {
-    expect(cacheKeyFor('  לבקש ')).toBe('pealim:v2:לבקש');
+    expect(cacheKeyFor('  לבקש ')).toBe('dikduk:v2:לבקש');
   });
 });
