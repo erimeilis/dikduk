@@ -1,6 +1,11 @@
-import { lookup, isError, type KVLike } from './lookup';
-import { createD1Store } from './store';
-import { analyzeHebrew, isAnalyzeError, type AnalyzeEnv } from './analyze';
+import { lookup, isError, statusFor as lookupStatusFor, type KVLike } from './lookup';
+import { createD1Store } from './storage/d1-store';
+import {
+  analyzeHebrew,
+  isAnalyzeError,
+  statusFor as analyzeStatusFor,
+  type AnalyzeEnv,
+} from './analyze';
 
 // PEALIM_CACHE is typed as the narrow KVLike our code uses, not the
 // workers-types `KVNamespace` global. The runtime binding is a full
@@ -44,7 +49,7 @@ export default {
         return json({ error: 'Method not allowed', code: 'BAD_REQUEST' }, 405);
       }
 
-      let body;
+      let body: unknown;
       try {
         body = await request.json();
       } catch {
@@ -52,20 +57,14 @@ export default {
       }
 
       const store = env.DB ? createD1Store(env.DB) : null;
-      const result = await analyzeHebrew(body as any, {
+      const result = await analyzeHebrew(body, {
         env: env as AnalyzeEnv,
         lookupImpl: (query) => lookup(query, {
           kv: env.PEALIM_CACHE ?? null,
           store,
         }),
       });
-      const status = isAnalyzeError(result)
-        ? result.code === 'BAD_REQUEST'
-          ? 400
-          : result.code === 'NO_PROVIDER'
-            ? 503
-            : 502
-        : 200;
+      const status = isAnalyzeError(result) ? analyzeStatusFor(result) : 200;
       return json(result, status);
     }
 
@@ -82,7 +81,7 @@ export default {
       kv: env.PEALIM_CACHE ?? null,
       store: env.DB ? createD1Store(env.DB) : null,
     });
-    const status = isError(result) ? (result.code === 'NO_RESULTS' ? 404 : 502) : 200;
+    const status = isError(result) ? lookupStatusFor(result) : 200;
     return json(result, status);
   },
 };

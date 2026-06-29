@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import Database from 'better-sqlite3';
-import { createD1Store } from '../src/store';
-import type { LookupResult } from '../src/types';
+import { createD1Store } from '../../src/storage/d1-store';
+import type { LookupResult } from '../../src/lookup/types';
 
 // Minimal adapter exposing the subset of the D1 API that store.ts uses.
 function d1(db: Database.Database): any {

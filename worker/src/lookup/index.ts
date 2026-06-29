@@ -1,7 +1,8 @@
 import { parseSearchResults } from './search-parser';
 import { parseDictPage } from './dict-parser';
 import { normalizeQuery } from './normalize';
-import type { Store } from './store';
+import { fetchText } from '../shared/fetch';
+import type { Store } from '../storage/d1-store';
 import type { LookupResult, LookupError } from './types';
 
 export { normalizeQuery };
@@ -25,15 +26,19 @@ export function isError(r: LookupResult | LookupError): r is LookupError {
   return (r as LookupError).code !== undefined;
 }
 
+// Map a lookup error code to its HTTP status.
+export function statusFor(error: LookupError): number {
+  return error.code === 'NO_RESULTS' ? 404 : 502;
+}
+
 async function getText(doFetch: typeof fetch, url: string): Promise<{ html: string } | LookupError> {
-  try {
-    const res = await doFetch(url, { headers: { 'User-Agent': UA } });
-    if (!res.ok) return { error: `Pealim returned ${res.status}`, code: 'UPSTREAM' };
-    return { html: await res.text() };
-  } catch (e) {
-    console.error('[lookup] fetch failed:', url, e);
-    return { error: `Pealim request failed: ${(e as Error).message}`, code: 'UPSTREAM' };
-  }
+  const res = await fetchText(doFetch, url, { headers: { 'User-Agent': UA } }, {
+    logLabel: 'lookup',
+    requestFailed: (message) => `Pealim request failed: ${message}`,
+    badStatus: (status) => `Pealim returned ${status}`,
+  });
+  if (!res.ok) return res.failure;
+  return { html: res.value };
 }
 
 export async function lookup(rawQuery: string, deps: LookupDeps = {}): Promise<LookupResult | LookupError> {

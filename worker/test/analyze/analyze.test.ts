@@ -5,7 +5,7 @@ import {
   isAnalyzeError,
   normalizeDictaBertPayload,
   WORKERS_AI_GRAMMAR_MODELS,
-} from '../src/analyze';
+} from '../../src/analyze';
 
 const dictaPayload = {
   sentences: [

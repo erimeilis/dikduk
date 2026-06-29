@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { parseDictPage } from '../src/dict-parser';
+import { parseDictPage } from '../../src/lookup/dict-parser';
 
 const html = readFileSync('test/fixtures/dict-levakesh.html', 'utf-8');
 const bare = (s: string) => s.replace(/\p{Mn}/gu, '');

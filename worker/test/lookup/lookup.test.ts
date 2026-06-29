@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { lookup, isError, normalizeQuery } from '../src/lookup';
-import type { LookupResult } from '../src/types';
-import type { Store } from '../src/store';
+import { lookup, isError, normalizeQuery } from '../../src/lookup';
+import type { LookupResult } from '../../src/lookup/types';
+import type { Store } from '../../src/storage/d1-store';
 
 const f = (n: string) => readFileSync(`test/fixtures/${n}`, 'utf-8');
 const searchVerb = f('search-levakesh.html');

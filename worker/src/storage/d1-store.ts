@@ -1,4 +1,4 @@
-import type { LookupResult } from './types';
+import type { LookupResult } from '../lookup/types';
 
 export interface Store {
   get(query: string): Promise<LookupResult | null>;

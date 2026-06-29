@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { parseSearchResults } from '../src/search-parser';
+import { parseSearchResults } from '../../src/lookup/search-parser';
 
 const verbHtml = readFileSync('test/fixtures/search-levakesh.html', 'utf-8');
 const adjHtml = readFileSync('test/fixtures/search-mevukash.html', 'utf-8');
