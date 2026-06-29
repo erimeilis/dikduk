@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OverlayRenderer } from '../src/spellcheck/render-overlay';
+import { OverlayRenderer } from '../src/spellcheck/overlay-renderer';
 
 describe('OverlayRenderer', () => {
   it('renders a mark span per flagged range and clears them', () => {

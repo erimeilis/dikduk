@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { renderPopup, renderChips, renderOcrLoading } from '../src/popup';
-import type { Conjugation, LookupResult } from '../src/types';
+import { renderPopup, renderChips, renderOcrLoading } from '../src/lookup/render-popup';
+import type { Conjugation, LookupResult } from '../src/contracts/lookup';
 
 const activeForms: Conjugation = {
   present: { ms: 'מְבַקֵּשׁ', fs: 'מְבַקֶּשֶׁת', mp: 'מְבַקְשִׁים', fp: 'מְבַקְשׁוֹת' },

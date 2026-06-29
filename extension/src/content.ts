@@ -1,7 +1,8 @@
-import { containsHebrew, extractWord } from './hebrew';
+import { containsHebrew, extractWord } from './shared/hebrew';
 import { computePosition } from './position';
-import { renderPopup, renderLoading, renderChips, renderOcrLoading, POPUP_CSS } from './popup';
-import type { LookupResponse } from './types';
+import { renderPopup, renderLoading, renderChips, renderOcrLoading } from './lookup/render-popup';
+import { POPUP_CSS } from './lookup/popup.css';
+import type { LookupResponse } from './contracts/lookup';
 import { SpellController } from './spellcheck/controller';
 import { renderSuggestions } from './spellcheck/suggest-popup';
 import { renderGrammarIssue } from './spellcheck/grammar-popup';

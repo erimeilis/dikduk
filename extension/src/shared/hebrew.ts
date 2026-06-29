@@ -1,3 +1,10 @@
+// Hebrew text primitives shared across the extension: detection, word extraction,
+// tokenization, and diacritic stripping. Consolidates the former `hebrew.ts`
+// (containsHebrew/extractWord/extractHebrewWords) with the former
+// `spellcheck/normalize.ts` (tokenizeHebrew/stripDiacritics/shouldSkip).
+
+const HEBREW_LETTER = /[א-ת]/; // Hebrew letters (excludes niqqud/punct alone)
+
 // Strip all Hebrew combining marks — niqqud + cantillation (U+0591–U+05C7).
 // That range also contains the spacing-punctuation MAQAF (U+05BE), PASEQ
 // (U+05C0), SOF PASUQ (U+05C3) and NUN HAFUKHA (U+05C6); these are stripped
@@ -11,6 +18,26 @@ export interface Token {
   text: string;
   start: number;
   end: number;
+}
+
+export function containsHebrew(text: string): boolean {
+  return HEBREW_LETTER.test(text);
+}
+
+export function extractWord(selection: string): string {
+  return selection.trim().split(/\s+/)[0] ?? '';
+}
+
+export function extractHebrewWords(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of text.split(/\s+/)) {
+    const token = raw.replace(/^[^א-ת]+|[^א-ת֑-ׇ]+$/gu, '');
+    if (!token || !containsHebrew(token) || seen.has(token)) continue;
+    seen.add(token);
+    out.push(token);
+  }
+  return out;
 }
 
 export function stripDiacritics(s: string): string {

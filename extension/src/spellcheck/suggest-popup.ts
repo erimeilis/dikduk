@@ -1,4 +1,4 @@
-import { el } from '../popup';
+import { el } from '../shared/dom';
 
 export function renderSuggestions(word: string, suggestions: string[]): HTMLElement {
   const wrap = el('div', 'dikduk-popup');

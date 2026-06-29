@@ -1,3 +1,6 @@
+// Lookup wire types — the shape returned by the lookup Worker and rendered by the
+// popup. Single source of truth for the lookup contract.
+
 export interface Conjugation {
   present: { ms: string; fs: string; mp: string; fp: string };
   past: {
@@ -14,6 +17,15 @@ export interface Conjugation {
   infinitive: string;
 }
 
+// Adjective inflection forms the Worker already returns. Typed here (optional) to
+// fix the drift between the Worker's response shape and the extension's contract.
+export interface AdjectiveForms {
+  ms: string;
+  fs: string;
+  mp: string;
+  fp: string;
+}
+
 export interface Voice {
   binyan: string | null;
   forms: Conjugation;
@@ -24,6 +36,10 @@ export interface SeeAlsoRef {
   slug: string;
 }
 
+export type InflectionKind = 'verb' | 'adjective' | 'other';
+
+export type ErrorCode = 'NO_RESULTS' | 'UPSTREAM' | 'PARSE';
+
 export interface LookupResult {
   word: string;
   lemma: string;
@@ -31,27 +47,21 @@ export interface LookupResult {
   translation: string;
   root: string;
   isVerb: boolean;
+  // Optional fields the Worker already returns — typed here to close the drift.
+  // No new rendering behavior is attached to them.
+  inflectionKind?: InflectionKind;
   voices?: { active?: Voice; passive?: Voice };
+  adjectiveForms?: AdjectiveForms;
   seeAlso: SeeAlsoRef[];
   sourceUrl: string;
 }
 
 export interface LookupError {
   error: string;
-  code: 'NO_RESULTS' | 'UPSTREAM' | 'PARSE';
+  code: ErrorCode;
 }
 
 export type LookupResponse = LookupResult | LookupError;
-
-export interface LookupMessage {
-  type: 'lookup';
-  word: string;
-}
-
-export interface RenderMessage {
-  type: 'render';
-  data: LookupResponse;
-}
 
 export function isLookupError(r: LookupResponse): r is LookupError {
   return (r as LookupError).code !== undefined;

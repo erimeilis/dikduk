@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractHebrewWords } from '../src/hebrew';
+import { extractHebrewWords } from '../src/shared/hebrew';
 
 describe('extractHebrewWords', () => {
   it('returns Hebrew tokens, dropping Latin/punctuation-only tokens', () => {

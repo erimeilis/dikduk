@@ -21,7 +21,6 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
-    "nspell": "^2.1.5",
     "tesseract.js": "^7.0.0",
     "tesseract.js-core": "^7.0.0"
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { containsHebrew, extractWord } from '../src/hebrew';
+import { containsHebrew, extractWord } from '../src/shared/hebrew';
 
 describe('containsHebrew', () => {
   it('detects Hebrew letters', () => {

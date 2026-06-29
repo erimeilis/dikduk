@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isLookupError } from '../src/types';
-import type { LookupResult } from '../src/types';
+import { isLookupError } from '../src/contracts/lookup';
+import type { LookupResult } from '../src/contracts/lookup';
 
 describe('v2 types', () => {
   it('composes a verb result with voices + seeAlso', () => {

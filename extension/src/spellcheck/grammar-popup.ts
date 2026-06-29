@@ -1,5 +1,5 @@
-import { el } from '../popup';
-import type { GrammarIssue } from './protocol';
+import { el } from '../shared/dom';
+import type { GrammarIssue } from '../contracts/grammar';
 
 const TITLES: Record<string, string> = {
   adjective_agreement: 'Adjective agreement',

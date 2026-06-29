@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripDiacritics, tokenizeHebrew, shouldSkip } from '../src/spellcheck/normalize';
+import { stripDiacritics, tokenizeHebrew, shouldSkip } from '../src/shared/hebrew';
 
 describe('stripDiacritics', () => {
   it('removes niqqud and cantillation, keeps letters', () => {
