@@ -6,7 +6,10 @@ const storage = {
 };
 
 const runtime = {
-  sendMessage: vi.fn(async () => ({ misspelled: ['שלוום'] })),
+  sendMessage: vi.fn(async (msg: { type?: string }): Promise<any> => {
+    if (msg.type === 'grammar-analyze') return { issues: [] };
+    return { misspelled: ['שלוום'] };
+  }),
 };
 
 beforeEach(() => {
@@ -88,5 +91,120 @@ describe('SpellController flag hit detection', () => {
     expect(hit?.word).toBe('שלוום');
     expect(hit?.range?.toString()).toBe('שלוום');
     expect(hit?.isTextField).toBe(false);
+  });
+
+  it('marks grammar issues returned for any textarea text', async () => {
+    vi.useFakeTimers();
+    runtime.sendMessage.mockImplementation(async (msg: { type?: string }) => {
+      if (msg.type === 'grammar-analyze') {
+        return {
+          issues: [{
+            id: 'adjective_agreement',
+            source: 'rule',
+            severity: 'error',
+            message: 'Adjective does not agree with the noun',
+            start: 0,
+            end: 9,
+          }],
+        };
+      }
+      return { misspelled: [] };
+    });
+
+    const controller = new SpellController();
+    await controller.start();
+
+    const textarea = document.createElement('textarea');
+    textarea.value = 'הספר טובה';
+    document.body.appendChild(textarea);
+
+    controller.rescan(textarea);
+    await vi.advanceTimersByTimeAsync(500);
+
+    const mark = document.querySelector('.pealim-grammar') as HTMLElement | null;
+    expect(mark?.textContent).toBe('הספר טובה');
+    expect(mark?.style.textDecorationColor).toBe('#c56a00');
+  });
+
+  it('resolves an input click to the grammar issue under the caret', async () => {
+    vi.useFakeTimers();
+    runtime.sendMessage.mockImplementation(async (msg: { type?: string }): Promise<any> => {
+      if (msg.type === 'grammar-analyze') {
+        return {
+          issues: [{
+            id: 'subject_verb_agreement',
+            source: 'rule',
+            severity: 'error',
+            message: 'Subject and verb do not agree',
+            start: 4,
+            end: 8,
+            evidence: 'gender mismatch: היא is feminine, אומר is masculine',
+          }],
+        };
+      }
+      return { misspelled: [] };
+    });
+
+    const controller = new SpellController();
+    await controller.start();
+
+    const input = document.createElement('input');
+    input.value = 'היא אומר';
+    document.body.appendChild(input);
+
+    controller.rescan(input);
+    await vi.advanceTimersByTimeAsync(500);
+
+    input.setSelectionRange(5, 5);
+    let hit = null as ReturnType<typeof controller.findGrammarAtClick>;
+    input.addEventListener('click', (e) => {
+      hit = controller.findGrammarAtClick(e as MouseEvent);
+    });
+    input.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 12, clientY: 34 }));
+
+    expect(hit?.issue.id).toBe('subject_verb_agreement');
+    expect(hit?.issue.evidence).toBe('gender mismatch: היא is feminine, אומר is masculine');
+    expect(hit?.isTextField).toBe(true);
+  });
+
+  it('suppresses grammar issues that overlap misspelled tokens', async () => {
+    vi.useFakeTimers();
+    runtime.sendMessage.mockImplementation(async (msg: { type?: string }): Promise<any> => {
+      if (msg.type === 'grammar-analyze') {
+        return {
+          issues: [{
+            id: 'subject_verb_agreement',
+            source: 'rule',
+            severity: 'error',
+            message: 'Subject and verb do not agree',
+            start: 4,
+            end: 8,
+            evidence: 'gender mismatch: היא is feminine, אומת is masculine',
+          }],
+        };
+      }
+      return { misspelled: ['אומת'] };
+    });
+
+    const controller = new SpellController();
+    await controller.start();
+
+    const input = document.createElement('input');
+    input.value = 'היא אומת';
+    document.body.appendChild(input);
+
+    controller.rescan(input);
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(document.querySelector('.pealim-misspell')?.textContent).toBe('אומת');
+    expect(document.querySelector('.pealim-grammar')).toBeNull();
+
+    input.setSelectionRange(5, 5);
+    let grammarHit = null as ReturnType<typeof controller.findGrammarAtClick>;
+    input.addEventListener('click', (e) => {
+      grammarHit = controller.findGrammarAtClick(e as MouseEvent);
+    });
+    input.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 12, clientY: 34 }));
+    expect(grammarHit).toBeNull();
   });
 });

@@ -10,6 +10,11 @@ export default defineConfig({
         offscreen: 'offscreen.html',
         popup: 'popup.html',
       },
+      output: {
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name][extname]',
+      },
     },
   },
 });

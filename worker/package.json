@@ -4,6 +4,8 @@
   "description": "",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:analyze": "wrangler dev --var DICTABERT_ANALYZER_URL:http://127.0.0.1:8788/analyze",
+    "analyzer:dictabert": "uv run --with transformers --with torch --with safetensors python scripts/dictabert-analyzer.py",
     "deploy": "wrangler deploy",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
     "test": "vitest run",

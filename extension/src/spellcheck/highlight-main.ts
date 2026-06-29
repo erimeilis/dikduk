@@ -26,12 +26,30 @@ function ensureStyle(): void {
   if (document.getElementById(STYLE_ID)) return;
   const s = document.createElement('style');
   s.id = STYLE_ID;
-  s.textContent = '::highlight(pealim-misspelled){ text-decoration: red wavy underline; }';
+  s.textContent = [
+    '::highlight(pealim-misspelled){ text-decoration: red wavy underline; }',
+    '::highlight(pealim-grammar){ text-decoration: #c56a00 wavy underline; }',
+  ].join('\n');
   document.head.appendChild(s);
 }
 
 interface FlagDetail {
   offsets: Array<{ start: number; end: number }>;
+  grammarOffsets?: Array<{ start: number; end: number }>;
+}
+
+function rangesFor(host: HTMLElement, offsets: Array<{ start: number; end: number }>): Range[] {
+  const ranges: Range[] = [];
+  for (const o of offsets) {
+    const a = locate(host, o.start);
+    const b = locate(host, o.end);
+    if (!a || !b) continue;
+    const r = document.createRange();
+    r.setStart(a.node, a.offset);
+    r.setEnd(b.node, b.offset);
+    ranges.push(r);
+  }
+  return ranges;
 }
 
 function install(): void {
@@ -44,18 +62,12 @@ function install(): void {
       CSS.highlights.delete('pealim-misspelled');
       return;
     }
-    const ranges: Range[] = [];
-    for (const o of detail.offsets) {
-      const a = locate(host, o.start);
-      const b = locate(host, o.end);
-      if (!a || !b) continue;
-      const r = document.createRange();
-      r.setStart(a.node, a.offset);
-      r.setEnd(b.node, b.offset);
-      ranges.push(r);
-    }
-    if (ranges.length) CSS.highlights.set('pealim-misspelled', new Highlight(...ranges));
+    const spellRanges = rangesFor(host, detail.offsets ?? []);
+    const grammarRanges = rangesFor(host, detail.grammarOffsets ?? []);
+    if (spellRanges.length) CSS.highlights.set('pealim-misspelled', new Highlight(...spellRanges));
     else CSS.highlights.delete('pealim-misspelled');
+    if (grammarRanges.length) CSS.highlights.set('pealim-grammar', new Highlight(...grammarRanges));
+    else CSS.highlights.delete('pealim-grammar');
   });
 }
 

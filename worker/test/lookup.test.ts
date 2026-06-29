@@ -62,6 +62,7 @@ describe('lookup v2 tiers', () => {
   it('KV hit short-circuits before the store', async () => {
     const kvVal: LookupResult = {
       word: 'לבקש', lemma: 'x', slug: '1-x', translation: 't', root: 'r', isVerb: false,
+      inflectionKind: 'other',
       seeAlso: [], sourceUrl: 'https://e',
     };
     const kv = { get: async () => kvVal, put: async () => {} };
@@ -70,6 +71,49 @@ describe('lookup v2 tiers', () => {
     const r = await lookup('לבקש', { kv, store, fetchImpl });
     expect(isError(r) ? null : r.slug).toBe('1-x');
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('refreshes stale non-verb store entries so adjective forms are populated', async () => {
+    const stale: LookupResult = {
+      word: 'חדש',
+      lemma: 'חָדָשׁ',
+      slug: '2679-chadash',
+      translation: 'new',
+      root: 'ח־ד־שׁ',
+      isVerb: false,
+      seeAlso: [],
+      sourceUrl: 'https://www.pealim.com/dict/2679-chadash/',
+    };
+    const store = memStore({ 'חדש': stale });
+    const searchAdjective = `
+      <div class="verb-search-result">
+        <div class="verb-search-lemma"><a href="/dict/2679-chadash/"><span class="menukad">חָדָשׁ</span></a></div>
+        <div class="verb-search-root"><a>ח - ד - שׁ</a></div>
+        <div class="verb-search-binyan"><span>Part of speech: adjective</span></div>
+        <div class="verb-search-meaning">new</div>
+        <div class="verb-search-button"><a>View all forms</a></div>
+      </div>
+    `;
+    const dictAdjective = `
+      <table class="conjugation-table">
+        <tr>
+          <td><div id="ms-a"><span class="menukad">חָדָשׁ</span></div></td>
+          <td><div id="fs-a"><span class="menukad">חֲדָשָׁה</span></div></td>
+          <td><div id="mp-a"><span class="menukad">חֲדָשִׁים</span></div></td>
+          <td><div id="fp-a"><span class="menukad">חֲדָשׁוֹת</span></div></td>
+        </tr>
+      </table>
+    `;
+    const fetchImpl = vi.fn(fakeFetch({ '/search/': searchAdjective, '/dict/2679-chadash/': dictAdjective }));
+
+    const r = await lookup('חדש', { store, fetchImpl });
+
+    expect(isError(r)).toBe(false);
+    if (isError(r)) return;
+    expect(fetchImpl).toHaveBeenCalled();
+    expect(r.inflectionKind).toBe('adjective');
+    expect(r.adjectiveForms?.mp.replace(/\p{Mn}/gu, '')).toBe('חדשים');
+    expect(store.puts).toBe(1);
   });
 
   it('returns NO_RESULTS when search has no result block', async () => {

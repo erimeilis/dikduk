@@ -14,6 +14,13 @@ export interface Conjugation {
   infinitive: string;
 }
 
+export interface AdjectiveForms {
+  ms: string;
+  fs: string;
+  mp: string;
+  fp: string;
+}
+
 export interface Voice {
   binyan: string | null;
   forms: Conjugation;
@@ -31,7 +38,9 @@ export interface LookupResult {
   translation: string;
   root: string;
   isVerb: boolean;
+  inflectionKind?: 'verb' | 'adjective' | 'other';
   voices?: { active?: Voice; passive?: Voice };
+  adjectiveForms?: AdjectiveForms;
   seeAlso: SeeAlsoRef[];
   sourceUrl: string;
 }

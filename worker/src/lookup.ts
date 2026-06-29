@@ -43,13 +43,13 @@ export async function lookup(rawQuery: string, deps: LookupDeps = {}): Promise<L
   const doFetch = deps.fetchImpl ?? fetch;
   const kv = deps.kv ?? null;
   const store = deps.store ?? null;
-  const cacheKey = `lookup:v2:${q}`;
+  const cacheKey = `lookup:v3:${q}`;
 
   // Tier 1: KV
   if (kv) {
     try {
       const cached = (await kv.get(cacheKey, 'json')) as LookupResult | null;
-      if (cached) return cached;
+      if (cached && isFreshLookupResult(cached)) return cached;
     } catch (e) {
       console.error('[lookup] KV get failed:', e);
     }
@@ -59,7 +59,7 @@ export async function lookup(rawQuery: string, deps: LookupDeps = {}): Promise<L
   if (store) {
     try {
       const stored = await store.get(q);
-      if (stored) {
+      if (stored && isFreshLookupResult(stored)) {
         if (kv) {
           try { await kv.put(cacheKey, JSON.stringify(stored), { expirationTtl: TTL }); }
           catch (e) { console.error('[lookup] KV put failed:', e); }
@@ -99,10 +99,12 @@ export async function lookup(rawQuery: string, deps: LookupDeps = {}): Promise<L
     translation: sr.translation,
     root: sr.root,
     isVerb: sr.isVerb,
+    inflectionKind: sr.isVerb ? 'verb' : parsed.adjectiveForms ? 'adjective' : 'other',
     seeAlso: parsed.seeAlso,
     sourceUrl: sr.dictUrl,
   };
   if (parsed.voices) result.voices = parsed.voices;
+  if (parsed.adjectiveForms) result.adjectiveForms = parsed.adjectiveForms;
 
   if (sr.isVerb && !result.voices?.active) {
     console.error('[lookup] verb with no active conjugation for', sr.dictUrl);
@@ -117,4 +119,8 @@ export async function lookup(rawQuery: string, deps: LookupDeps = {}): Promise<L
     catch (e) { console.error('[lookup] KV put failed:', e); }
   }
   return result;
+}
+
+function isFreshLookupResult(result: LookupResult): boolean {
+  return result.isVerb || result.inflectionKind !== undefined;
 }

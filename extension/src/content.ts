@@ -4,6 +4,7 @@ import { renderPopup, renderLoading, renderChips, renderOcrLoading, POPUP_CSS } 
 import type { LookupResponse } from './types';
 import { SpellController } from './spellcheck/controller';
 import { renderSuggestions } from './spellcheck/suggest-popup';
+import { renderGrammarIssue } from './spellcheck/grammar-popup';
 import { replaceInRange, replaceInTextField } from './spellcheck/replace';
 import { addUserWord } from './spellcheck/userdict';
 
@@ -89,6 +90,17 @@ document.addEventListener('mousedown', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') dismiss();
 });
+document.addEventListener('input', (e) => {
+  const target = e.target as HTMLElement | null;
+  if (
+    target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target?.isContentEditable
+    || target?.closest('[contenteditable]')
+  ) {
+    dismiss();
+  }
+}, true);
 
 // Context-menu lookups arrive as a 'render' message from the background worker.
 document.addEventListener(
@@ -128,37 +140,47 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; words?: string[]; me
 
 document.addEventListener('click', async (e) => {
   const hit = spell.findFlagAtClick(e as MouseEvent);
-  if (!hit) return;
-  e.preventDefault();
-  const word = hit.word;
-  const rect = hit.rect;
-  const sugg = await spell.suggest(word);
-  const node = renderSuggestions(word, sugg);
-  showNode(node, rect);
-  // wire actions inside the shadow popup
-  node.addEventListener('click', (ev) => {
-    const t = (ev as MouseEvent).target as HTMLElement;
-    const pick = t.closest('button[data-suggest]') as HTMLElement | null;
-    const act = t.closest('button[data-action]') as HTMLElement | null;
-    if (pick) {
-      const replacement = pick.dataset.suggest!;
-      if (hit.isTextField) {
-        replaceInTextField(hit.field as HTMLInputElement | HTMLTextAreaElement, hit.start, hit.end, replacement);
-      } else if (hit.range) {
-        replaceInRange(hit.range, replacement);
+  if (hit) {
+    e.preventDefault();
+    const word = hit.word;
+    const rect = hit.rect;
+    const sugg = await spell.suggest(word);
+    const node = renderSuggestions(word, sugg);
+    showNode(node, rect);
+    // wire actions inside the shadow popup
+    node.addEventListener('click', (ev) => {
+      const t = (ev as MouseEvent).target as HTMLElement;
+      const pick = t.closest('button[data-suggest]') as HTMLElement | null;
+      const act = t.closest('button[data-action]') as HTMLElement | null;
+      if (pick) {
+        const replacement = pick.dataset.suggest!;
+        if (hit.isTextField) {
+          replaceInTextField(hit.field as HTMLInputElement | HTMLTextAreaElement, hit.start, hit.end, replacement);
+        } else if (hit.range) {
+          replaceInRange(hit.range, replacement);
+        }
+        dismiss();
+      } else if (act?.dataset.action === 'lookup') {
+        void lookupAndShow(word, rect);
+      } else if (act?.dataset.action === 'add') {
+        void addUserWord(word);
+        spell.rememberUserWord(word);
+        spell.rescan(hit.field);
+        dismiss();
+      } else if (act?.dataset.action === 'ignore') {
+        spell.ignoreWord(word);
+        spell.rescan(hit.field);
+        dismiss();
       }
-      dismiss();
-    } else if (act?.dataset.action === 'lookup') {
-      void lookupAndShow(word, rect);
-    } else if (act?.dataset.action === 'add') {
-      void addUserWord(word);
-      spell.rememberUserWord(word);
-      spell.rescan(hit.field);
-      dismiss();
-    } else if (act?.dataset.action === 'ignore') {
-      spell.ignoreWord(word);
-      spell.rescan(hit.field);
-      dismiss();
-    }
-  });
+    });
+    return;
+  }
+
+  const grammarHit = spell.findGrammarAtClick(e as MouseEvent);
+  if (!grammarHit) return;
+  e.preventDefault();
+  const text = grammarHit.isTextField
+    ? (grammarHit.field as HTMLInputElement | HTMLTextAreaElement).value
+    : (grammarHit.field as HTMLElement).textContent ?? '';
+  showNode(renderGrammarIssue(grammarHit.issue, text), grammarHit.rect);
 });

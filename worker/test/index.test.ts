@@ -37,4 +37,31 @@ describe('worker.fetch', () => {
     expect(body.voices.active.binyan).toBe("Pi'el");
     vi.unstubAllGlobals();
   });
+
+  it('returns analyzer JSON through POST /analyze', async () => {
+    vi.stubGlobal('fetch', (async () => new Response(JSON.stringify({
+      tokens: [
+        {
+          token: 'הספר',
+          morph: { pos: 'NOUN', feats: { Gender: 'Masc', Number: 'Sing' } },
+          syntax: { dep_head_idx: -1, dep_func: 'root' },
+        },
+        {
+          token: 'טובה',
+          morph: { pos: 'ADJ', feats: { Gender: 'Fem', Number: 'Sing' } },
+          syntax: { dep_head_idx: 0, dep_func: 'amod' },
+        },
+      ],
+    }), { status: 200 })) as any);
+
+    const res = await worker.fetch(new Request('https://w/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ text: 'הספר טובה' }),
+    }), { ...env, DICTABERT_ANALYZER_URL: 'https://dicta.example/analyze' });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.provider).toBe('dictabert-http');
+    expect(body.issues.map((issue: any) => issue.id)).toContain('adjective_agreement');
+    vi.unstubAllGlobals();
+  });
 });

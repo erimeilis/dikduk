@@ -1,8 +1,14 @@
-import { WORKER_URL } from './config';
+import { ANALYZE_WORKER_URLS, WORKER_URL } from './config';
 import { cacheKeyFor } from './cache-key';
 import type { LookupResponse, LookupMessage, RenderMessage } from './types';
 import { containsHebrew, extractWord, extractHebrewWords } from './hebrew';
-import type { SpellCheckRequest, SpellSuggestRequest, SpellResult } from './spellcheck/protocol';
+import type {
+  GrammarAnalyzeRequest,
+  GrammarResult,
+  SpellCheckRequest,
+  SpellSuggestRequest,
+  SpellResult,
+} from './spellcheck/protocol';
 
 async function fetchLookup(word: string): Promise<LookupResponse> {
   const key = cacheKeyFor(word);
@@ -31,9 +37,34 @@ async function fetchLookup(word: string): Promise<LookupResponse> {
   }
 }
 
+async function fetchGrammar(text: string): Promise<GrammarResult> {
+  let lastError = 'Analyzer failed';
+  for (const baseUrl of ANALYZE_WORKER_URLS) {
+    try {
+      const res = await fetch(`${baseUrl}/analyze`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await res.json()) as GrammarResult & { code?: string };
+      if (res.ok && 'issues' in data) return { issues: data.issues };
+      lastError = 'error' in data ? data.error : `Analyzer returned ${res.status}`;
+    } catch (e) {
+      lastError = (e as Error).message;
+    }
+  }
+  return { error: lastError };
+}
+
 chrome.runtime.onMessage.addListener((msg: LookupMessage, _sender, sendResponse) => {
   if (msg?.type !== 'lookup') return false;
   fetchLookup(msg.word).then(sendResponse);
+  return true; // keep the message channel open for the async response
+});
+
+chrome.runtime.onMessage.addListener((msg: GrammarAnalyzeRequest | { type?: string }, _sender, sendResponse) => {
+  if (msg?.type !== 'grammar-analyze') return false;
+  fetchGrammar((msg as GrammarAnalyzeRequest).text).then(sendResponse);
   return true; // keep the message channel open for the async response
 });
 

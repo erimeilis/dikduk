@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="he">
+<head>
+<meta charset="utf-8" />
+<title>Pealim grammar analyzer test</title>
+<style>
+  body { font: 16px -apple-system, Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 16px; margin: 22px 0 8px; }
+  button { font: inherit; padding: 7px 12px; border: 1px solid #999; border-radius: 6px; background: #fff; cursor: pointer; }
+  button.primary { background: #0b57d0; border-color: #0b57d0; color: #fff; font-weight: 600; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .note { color: #777; font-size: 13px; margin-top: 4px; }
+  .case { border-top: 1px solid #ddd; padding: 14px 0; }
+  .label { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #555; }
+  .text, textarea {
+    width: 100%; box-sizing: border-box; font-size: 22px; direction: rtl; text-align: right;
+    padding: 8px 10px; border: 1px solid #bbb; border-radius: 6px; line-height: 1.7; background: #fff;
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  .result { font-size: 13px; margin-top: 6px; color: #555; }
+  .pass { color: #137333; font-weight: 700; }
+  .fail { color: #b3261e; font-weight: 700; }
+  .wait { color: #777; font-weight: 700; }
+  .mark {
+    text-decoration-line: underline;
+    text-decoration-style: wavy;
+    text-decoration-color: #d32235;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 4px;
+    background: #fff2f3;
+  }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 4px; }
+  ol { line-height: 1.7; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 18px; }
+</style>
+</head>
+<body>
+  <h1>Pealim grammar analyzer — manual test</h1>
+  <p class="note">This page tests the local Worker endpoint <code>http://127.0.0.1:8787/analyze</code>. Red wavy underline means the grammar analyzer returned an issue for that range.</p>
+
+  <div class="toolbar">
+    <button class="primary" id="run">Run tests</button>
+    <button id="clear">Clear results</button>
+    <span class="note" id="api">API status: not checked</span>
+  </div>
+
+  <div id="cases"></div>
+
+  <h2>Try your own Hebrew</h2>
+  <textarea id="custom">הספר טובה</textarea>
+  <div class="toolbar">
+    <button id="custom-run">Analyze text</button>
+    <span class="note" id="custom-status">Waiting</span>
+  </div>
+  <div class="text" id="custom-preview"></div>
+  <div class="result" id="custom-result"></div>
+
+  <h2>Checklist</h2>
+  <ol>
+    <li><code>הספר טובה</code> should get a red wavy underline and PASS with <b>adjective_agreement</b>.</li>
+    <li><code>הספר טוב</code> should have no underline and PASS with no issues.</li>
+    <li><code>הילד הלכה הביתה</code> should get a red wavy underline and PASS with <b>subject_verb_agreement</b>.</li>
+    <li><code>אני אני הולך</code> should get a red wavy underline and PASS with <b>repeated_word</b>.</li>
+    <li>If every fixed case is green, the analyzer path is working: browser → Worker → DictaBERT → rule layer → browser.</li>
+  </ol>
+
+<script>
+const endpoint = 'http://127.0.0.1:8787/analyze';
+
+const tests = [
+  {
+    title: 'Adjective agreement — should flag',
+    text: 'הספר טובה',
+    expected: ['adjective_agreement'],
+  },
+  {
+    title: 'Correct adjective — should not flag',
+    text: 'הספר טוב',
+    expected: [],
+  },
+  {
+    title: 'Subject/verb agreement — should flag',
+    text: 'הילד הלכה הביתה',
+    expected: ['subject_verb_agreement'],
+  },
+  {
+    title: 'Repeated word — should flag',
+    text: 'אני אני הולך',
+    expected: ['repeated_word'],
+  },
+];
+
+const cases = document.querySelector('#cases');
+const runButton = document.querySelector('#run');
+const clearButton = document.querySelector('#clear');
+const api = document.querySelector('#api');
+const custom = document.querySelector('#custom');
+const customRun = document.querySelector('#custom-run');
+const customStatus = document.querySelector('#custom-status');
+const customPreview = document.querySelector('#custom-preview');
+const customResult = document.querySelector('#custom-result');
+
+cases.innerHTML = tests.map((test, index) => `
+  <div class="case" data-case="${index}">
+    <div class="label">
+      <span>${escapeHtml(test.title)}</span>
+      <span class="wait" data-status>WAIT</span>
+    </div>
+    <div class="text" data-preview>${escapeHtml(test.text)}</div>
+    <div class="result" data-result>Expected: ${test.expected.length ? test.expected.map(escapeHtml).join(', ') : 'no issues'}</div>
+  </div>
+`).join('');
+
+runButton.addEventListener('click', runAll);
+clearButton.addEventListener('click', clearResults);
+customRun.addEventListener('click', runCustom);
+
+runAll();
+
+async function runAll() {
+  runButton.disabled = true;
+  api.textContent = 'API status: checking...';
+
+  for (let i = 0; i < tests.length; i++) {
+    const row = cases.querySelector(`[data-case="${i}"]`);
+    const status = row.querySelector('[data-status]');
+    const preview = row.querySelector('[data-preview]');
+    const result = row.querySelector('[data-result]');
+    status.textContent = 'RUN';
+    status.className = 'wait';
+    result.textContent = 'Analyzing...';
+
+    try {
+      const body = await analyze(tests[i].text);
+      api.textContent = 'API status: OK';
+      const issueIds = body.issues.map((issue) => issue.id);
+      const passed = sameSet(issueIds, tests[i].expected);
+      status.textContent = passed ? 'PASS' : 'FAIL';
+      status.className = passed ? 'pass' : 'fail';
+      preview.innerHTML = highlight(tests[i].text, body.issues);
+      result.innerHTML = formatResult(body.issues, tests[i].expected);
+    } catch (error) {
+      api.textContent = 'API status: failed';
+      status.textContent = 'FAIL';
+      status.className = 'fail';
+      preview.textContent = tests[i].text;
+      result.textContent = error.message;
+    }
+  }
+
+  runButton.disabled = false;
+}
+
+async function runCustom() {
+  customRun.disabled = true;
+  customStatus.textContent = 'Analyzing...';
+  customResult.textContent = '';
+
+  try {
+    const body = await analyze(custom.value);
+    customStatus.textContent = `${body.issues.length} issue(s)`;
+    customPreview.innerHTML = highlight(custom.value, body.issues);
+    customResult.innerHTML = body.issues.length ? issueSummary(body.issues) : 'No issues returned.';
+  } catch (error) {
+    customStatus.textContent = 'Failed';
+    customPreview.textContent = custom.value;
+    customResult.textContent = error.message;
+  } finally {
+    customRun.disabled = false;
+  }
+}
+
+function clearResults() {
+  api.textContent = 'API status: not checked';
+  cases.querySelectorAll('.case').forEach((row, index) => {
+    row.querySelector('[data-status]').textContent = 'WAIT';
+    row.querySelector('[data-status]').className = 'wait';
+    row.querySelector('[data-preview]').textContent = tests[index].text;
+    row.querySelector('[data-result]').textContent = `Expected: ${tests[index].expected.length ? tests[index].expected.join(', ') : 'no issues'}`;
+  });
+  customPreview.textContent = '';
+  customResult.textContent = '';
+  customStatus.textContent = 'Waiting';
+}
+
+async function analyze(text) {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  const body = await response.json();
+  if (!response.ok || body.error) throw new Error(body.error || `HTTP ${response.status}`);
+  return body;
+}
+
+function highlight(text, issues) {
+  const ranges = issues
+    .slice()
+    .sort((a, b) => a.start - b.start)
+    .filter((issue) => Number.isInteger(issue.start) && Number.isInteger(issue.end));
+
+  let cursor = 0;
+  let html = '';
+  for (const issue of ranges) {
+    if (issue.start < cursor) continue;
+    html += escapeHtml(text.slice(cursor, issue.start));
+    html += `<span class="mark">${escapeHtml(text.slice(issue.start, issue.end))}</span>`;
+    cursor = issue.end;
+  }
+  html += escapeHtml(text.slice(cursor));
+  return html || '&nbsp;';
+}
+
+function formatResult(issues, expected) {
+  const got = issues.map((issue) => issue.id);
+  return [
+    `Expected: ${expected.length ? expected.map(escapeHtml).join(', ') : 'no issues'}`,
+    `Got: ${got.length ? got.map(escapeHtml).join(', ') : 'no issues'}`,
+    issues.length ? issueSummary(issues) : '',
+  ].filter(Boolean).join('<br>');
+}
+
+function issueSummary(issues) {
+  return issues.map((issue) => {
+    const evidence = issue.evidence ? ` — ${escapeHtml(issue.evidence)}` : '';
+    return `<b>${escapeHtml(issue.id)}</b>${evidence}`;
+  }).join('<br>');
+}
+
+function sameSet(actual, expected) {
+  if (actual.length !== expected.length) return false;
+  const a = actual.slice().sort();
+  const b = expected.slice().sort();
+  return a.every((value, index) => value === b[index]);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+</script>
+</body>
+</html>

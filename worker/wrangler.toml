@@ -2,6 +2,9 @@ name = "pealim-lookup"
 main = "src/index.ts"
 compatibility_date = "2026-06-22"
 
+[ai]
+binding = "AI"
+
 [[kv_namespaces]]
 binding = "PEALIM_CACHE"
 id = "57a382bb8db347839441eb237e4237f0"

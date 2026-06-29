@@ -1,5 +1,5 @@
 import { parse, type HTMLElement } from 'node-html-parser';
-import type { Conjugation, Voice, SeeAlsoRef } from './types';
+import type { AdjectiveForms, Conjugation, Voice, SeeAlsoRef } from './types';
 
 // Keep Pealim's primary spelling ("primary ~ alternate" → "primary"), drop zero-width and
 // bidi control chars (U+200B–U+200F, U+202A–U+202E), collapse whitespace.
@@ -23,6 +23,7 @@ const FUTURE_IDS = {
   '3ms': 'IMPF-3ms', '3fs': 'IMPF-3fs', '3mp': 'IMPF-3mp', '3fp': 'IMPF-3fp',
 } as const;
 const IMP_IDS = { '2ms': 'IMP-2ms', '2fs': 'IMP-2fs', '2mp': 'IMP-2mp', '2fp': 'IMP-2fp' } as const;
+const ADJECTIVE_IDS = { ms: 'ms-a', fs: 'fs-a', mp: 'mp-a', fp: 'fp-a' } as const;
 
 function formById(root: HTMLElement, id: string): string {
   const cell = root.getElementById(id);
@@ -83,9 +84,19 @@ function parseSeeAlso(root: HTMLElement): SeeAlsoRef[] {
   return out;
 }
 
+function readAdjectiveForms(root: HTMLElement): AdjectiveForms | undefined {
+  const forms: AdjectiveForms = {
+    ms: formById(root, ADJECTIVE_IDS.ms),
+    fs: formById(root, ADJECTIVE_IDS.fs),
+    mp: formById(root, ADJECTIVE_IDS.mp),
+    fp: formById(root, ADJECTIVE_IDS.fp),
+  };
+  return Object.values(forms).some(Boolean) ? forms : undefined;
+}
+
 export function parseDictPage(
   html: string,
-): { voices?: { active?: Voice; passive?: Voice }; seeAlso: SeeAlsoRef[] } {
+): { voices?: { active?: Voice; passive?: Voice }; adjectiveForms?: AdjectiveForms; seeAlso: SeeAlsoRef[] } {
   const root = parse(html);
 
   const activeForms = readVoice(root, '');
@@ -97,6 +108,7 @@ export function parseDictPage(
 
   return {
     voices: voices.active || voices.passive ? voices : undefined,
+    adjectiveForms: readAdjectiveForms(root),
     seeAlso: parseSeeAlso(root),
   };
 }

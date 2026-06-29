@@ -32,4 +32,24 @@ describe('parseDictPage', () => {
     expect(seeAlso.every((s) => /^\d+-[^/?#]+$/.test(s.slug))).toBe(true);
     expect(seeAlso.find((s) => s.slug === '2955-bikush')!.label.replace(/\p{Mn}/gu, '')).toMatch(/ביקוש/);
   });
+
+  it('reads adjective inflection forms', () => {
+    const result = parseDictPage(`
+      <table class="conjugation-table">
+        <tr>
+          <td><div id="ms-a"><span class="menukad">חָדָשׁ</span></div></td>
+          <td><div id="fs-a"><span class="menukad">חֲדָשָׁה</span></div></td>
+          <td><div id="mp-a"><span class="menukad">חֲדָשִׁים</span></div></td>
+          <td><div id="fp-a"><span class="menukad">חֲדָשׁוֹת</span></div></td>
+        </tr>
+      </table>
+    `);
+
+    expect(result.adjectiveForms).toEqual({
+      ms: 'חָדָשׁ',
+      fs: 'חֲדָשָׁה',
+      mp: 'חֲדָשִׁים',
+      fp: 'חֲדָשׁוֹת',
+    });
+  });
 });

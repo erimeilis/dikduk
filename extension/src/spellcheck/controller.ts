@@ -1,7 +1,14 @@
 import { tokenizeHebrew, shouldSkip, stripDiacritics, type Token } from './normalize';
 import { loadUserDict, isEnabled } from './userdict';
-import type { SpellCheckRequest, SpellSuggestRequest, SpellResult } from './protocol';
-import { OverlayRenderer } from './render-overlay';
+import type {
+  GrammarAnalyzeRequest,
+  GrammarResult,
+  GrammarIssue,
+  SpellCheckRequest,
+  SpellSuggestRequest,
+  SpellResult,
+} from './protocol';
+import { OverlayRenderer, type OverlayRange } from './render-overlay';
 import { containsHebrew } from '../hebrew';
 
 export function computeCandidates(
@@ -38,12 +45,21 @@ export interface SpellFlagHit {
   isTextField: boolean;
 }
 
+export interface GrammarFlagHit {
+  field: Editable;
+  issue: GrammarIssue;
+  rect: DOMRect;
+  range?: Range;
+  isTextField: boolean;
+}
+
 export class SpellController {
   private enabled = false;
   private userDict = new Set<string>();
   private ignore = new Set<string>();
   private overlays = new WeakMap<HTMLElement, OverlayRenderer>();
   private flags = new WeakMap<HTMLElement, Token[]>();
+  private grammarFlags = new WeakMap<HTMLElement, GrammarIssue[]>();
   private timer: number | undefined;
 
   async start(): Promise<void> {
@@ -73,6 +89,19 @@ export class SpellController {
       return res && 'misspelled' in res ? res.misspelled : [];
     } catch (e) {
       console.error('[pealim] spell check failed:', e);
+      return [];
+    }
+  }
+
+  private async analyzeGrammar(text: string): Promise<GrammarIssue[]> {
+    try {
+      const res = (await chrome.runtime.sendMessage({
+        type: 'grammar-analyze',
+        text,
+      } satisfies GrammarAnalyzeRequest)) as GrammarResult | undefined;
+      return res && 'issues' in res ? res.issues.filter((issue) => isValidIssue(issue, text.length)) : [];
+    } catch (e) {
+      console.error('[pealim] grammar analyze failed:', e);
       return [];
     }
   }
@@ -114,6 +143,18 @@ export class SpellController {
     return host ? this.findContentEditableHit(host, e) : null;
   }
 
+  findGrammarAtClick(e: MouseEvent): GrammarFlagHit | null {
+    const target = e.target as HTMLElement | null;
+    if (!target) return null;
+
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      return this.findTextFieldGrammarHit(target, e);
+    }
+
+    const host = findContentEditableHost(target);
+    return host ? this.findContentEditableGrammarHit(host, e) : null;
+  }
+
   // Scan a field's current text (used on both typing and focus, so pre-existing
   // text is checked, not only newly-typed characters).
   private scan(el: Editable): void {
@@ -136,7 +177,11 @@ export class SpellController {
 
   private onInput = (e: Event): void => {
     const el = e.target as Editable | null;
-    if (el) this.scan(el);
+    const field = normalizeEditable(el);
+    if (field) {
+      this.clear(field);
+      this.scan(field);
+    }
   };
 
   private onFocusIn = (e: Event): void => {
@@ -151,9 +196,19 @@ export class SpellController {
 
   private async run(el: Editable, text: string, isTextField: boolean): Promise<void> {
     const { tokens, norms } = computeCandidates(text, this.userDict, this.ignore);
-    const misspelled = norms.length ? new Set(await this.check(norms)) : new Set<string>();
+    const [misspelledWords, grammarIssues] = await Promise.all([
+      norms.length ? this.check(norms) : Promise.resolve([]),
+      shouldAnalyzeGrammar(text) ? this.analyzeGrammar(text) : Promise.resolve([]),
+    ]);
+    if (currentText(el, isTextField) !== text) return;
+    const misspelled = new Set(misspelledWords);
     const flagged = tokens.filter((t) => misspelled.has(stripDiacritics(t.text)));
+    const visibleGrammarIssues = grammarIssues.filter((issue) =>
+      !flagged.some((token) => rangesOverlap(issue, token)),
+    );
     this.flags.set(el as HTMLElement, flagged);
+    this.grammarFlags.set(el as HTMLElement, visibleGrammarIssues);
+    const grammarRanges = visibleGrammarIssues.map(issueToRange);
 
     if (isTextField) {
       const field = el as HTMLInputElement | HTMLTextAreaElement;
@@ -162,11 +217,14 @@ export class SpellController {
         ov = new OverlayRenderer(field);
         this.overlays.set(field, ov);
       }
-      ov.mark(flagged);
+      ov.mark([...flagged.map(tokenToRange), ...grammarRanges]);
     } else {
       window.dispatchEvent(
         new CustomEvent('pealim-spell-flags', {
-          detail: { offsets: flagged.map((t) => ({ start: t.start, end: t.end })) },
+          detail: {
+            offsets: flagged.map((t) => ({ start: t.start, end: t.end })),
+            grammarOffsets: grammarRanges.map((t) => ({ start: t.start, end: t.end })),
+          },
         }),
       );
     }
@@ -174,6 +232,7 @@ export class SpellController {
 
   private clear(el: Editable): void {
     this.flags.delete(el as HTMLElement);
+    this.grammarFlags.delete(el as HTMLElement);
     const overlay = this.overlays.get(el as HTMLElement);
     if (overlay) overlay.clear();
   }
@@ -212,6 +271,37 @@ export class SpellController {
       isTextField: false,
     };
   }
+
+  private findTextFieldGrammarHit(
+    field: HTMLInputElement | HTMLTextAreaElement,
+    e: MouseEvent,
+  ): GrammarFlagHit | null {
+    const issue = findRangeAtOffset(this.grammarFlags.get(field) ?? [], field.selectionStart ?? -1);
+    if (!issue) return null;
+    return {
+      field,
+      issue,
+      rect: pointRect(e, field),
+      isTextField: true,
+    };
+  }
+
+  private findContentEditableGrammarHit(host: HTMLElement, e: MouseEvent): GrammarFlagHit | null {
+    const offset = offsetFromPoint(host, e.clientX, e.clientY) ?? offsetFromSelection(host);
+    if (offset === null) return null;
+
+    const issue = findRangeAtOffset(this.grammarFlags.get(host) ?? [], offset);
+    if (!issue) return null;
+
+    const range = rangeFromOffsets(host, issue.start, issue.end) ?? undefined;
+    return {
+      field: host,
+      issue,
+      rect: range ? range.getBoundingClientRect() : pointRect(e, host),
+      range,
+      isTextField: false,
+    };
+  }
 }
 
 function normalizeEditable(el: Editable | null): Editable | null {
@@ -230,8 +320,45 @@ function isContentEditable(el: HTMLElement): boolean {
   return el.isContentEditable || attr === '' || attr === 'true';
 }
 
+function currentText(el: Editable, isTextField: boolean): string | null {
+  return isTextField
+    ? (el as HTMLInputElement | HTMLTextAreaElement).value
+    : el instanceof HTMLElement && isContentEditable(el)
+      ? el.textContent
+      : null;
+}
+
 function findTokenAtOffset<T extends Token>(tokens: T[], offset: number): T | null {
   return tokens.find((token) => offset >= token.start && offset <= token.end) ?? null;
+}
+
+function findRangeAtOffset<T extends { start: number; end: number }>(ranges: T[], offset: number): T | null {
+  return ranges.find((range) => offset >= range.start && offset <= range.end) ?? null;
+}
+
+function rangesOverlap(a: { start: number; end: number }, b: { start: number; end: number }): boolean {
+  return a.start < b.end && b.start < a.end;
+}
+
+function tokenToRange(token: Token): OverlayRange {
+  return { start: token.start, end: token.end, kind: 'spell' };
+}
+
+function issueToRange(issue: GrammarIssue): OverlayRange {
+  return { start: issue.start, end: issue.end, kind: 'grammar' };
+}
+
+function isValidIssue(issue: GrammarIssue, textLength: number): boolean {
+  return Number.isInteger(issue.start)
+    && Number.isInteger(issue.end)
+    && issue.start >= 0
+    && issue.end > issue.start
+    && issue.end <= textLength;
+}
+
+function shouldAnalyzeGrammar(text: string): boolean {
+  const tokens = tokenizeHebrew(text).filter((token) => !shouldSkip(token.text));
+  return tokens.length >= 2;
 }
 
 function pointRect(e: MouseEvent, fallback: HTMLElement): DOMRect {

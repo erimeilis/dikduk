@@ -39,6 +39,13 @@ export const POPUP_CSS = `
 .pealim-popup .pealim-spell-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px; }
 .pealim-popup .pealim-spell-action { all: unset; cursor: pointer; font-size: 12px; color: #2563eb; }
 .pealim-popup .pealim-spell-action:hover { text-decoration: underline; }
+.pealim-popup .pealim-grammar-evidence { margin-top: 8px; direction: rtl; text-align: right; color: #7a3f00; font-size: 13px; }
+.pealim-popup .pealim-grammar-replacements { margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px; }
+.pealim-popup .pealim-grammar-hint { margin-top: 8px; color: #333; font-size: 13px; }
+.pealim-popup .pealim-grammar-suggestions { margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px; }
+.pealim-popup .pealim-grammar-suggestions-title { color: #555; font-size: 12px; font-weight: 600; }
+.pealim-popup .pealim-grammar-suggestion { margin-top: 4px; color: #137333; font-size: 13px; }
+.pealim-popup .pealim-grammar-replacement { margin-top: 4px; color: #137333; font-size: 13px; }
 `;
 
 export function el(tag: string, cls?: string, text?: string): HTMLElement {
