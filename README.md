@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="extension/public/icons/icon128.png" alt="DikDuk logo" width="96" />
+</div>
+
 # DikDuk
 
 **Read and write Hebrew in the browser — in-page dictionary lookup, spell-check, and grammar hints.**

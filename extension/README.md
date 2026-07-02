@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="public/icons/icon128.png" alt="DikDuk logo" width="96" />
+</div>
+
 # DikDuk — extension
 
 **Chrome MV3 extension for reading and writing Hebrew: in-page dictionary lookup, spell-check, and grammar hints.**
