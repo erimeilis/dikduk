@@ -6,6 +6,7 @@ import {
   normalizeDictaBertPayload,
   WORKERS_AI_GRAMMAR_MODELS,
 } from '../../src/analyze';
+import { parseLlmIssues } from '../../src/analyze/llm-parsing';
 
 const dictaPayload = {
   sentences: [
@@ -673,5 +674,35 @@ describe('analyzeHebrew', () => {
       '@cf/moonshotai/kimi-k2.6',
       '@cf/google/gemma-3-12b-it',
     ]);
+  });
+
+  it('parses issues from an OpenAI-style choices[].message.content payload (kimi)', () => {
+    const text = 'הילדה הלך הביתה';
+    const raw = {
+      choices: [
+        {
+          finish_reason: 'stop',
+          message: {
+            reasoning_content: 'The subject is feminine but the verb is masculine...',
+            content: JSON.stringify({
+              issues: [
+                {
+                  id: 'verb_gender_mismatch',
+                  severity: 'error',
+                  message: 'Feminine subject with masculine verb.',
+                  start: 6,
+                  end: 9,
+                  replacement: 'הלכה',
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    };
+    const issues = parseLlmIssues(text, raw);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].id).toBe('verb_gender_mismatch');
+    expect(issues[0].replacement).toBe('הלכה');
   });
 });

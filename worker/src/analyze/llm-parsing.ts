@@ -114,6 +114,15 @@ export function extractGeneratedText(raw: unknown): string | null {
   const obj = raw as Record<string, any>;
   if (typeof obj.response === 'string') return obj.response;
   if (typeof obj.output_text === 'string') return obj.output_text;
+  // OpenAI-style shape (e.g. kimi-k2.6): choices[].message.content. Reasoning
+  // models put their thinking in reasoning_content and the answer in content,
+  // so only content is the payload we want.
+  if (Array.isArray(obj.choices)) {
+    for (const choice of obj.choices) {
+      const content = choice?.message?.content;
+      if (typeof content === 'string' && content.trim()) return content;
+    }
+  }
   if (Array.isArray(obj.candidates)) {
     for (const candidate of obj.candidates) {
       const parts = candidate?.content?.parts;
