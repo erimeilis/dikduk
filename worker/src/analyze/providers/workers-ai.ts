@@ -13,7 +13,9 @@ export class WorkersAiAnalyzer implements Analyzer {
         messages: grammarMessages(text),
         response_format: { type: 'json_object' },
         temperature: 0,
-        max_tokens: 700,
+        // kimi-k2.6 is a reasoning model — it spends tokens on reasoning before
+        // emitting the JSON answer, so 700 left `content` empty. Give it room.
+        max_tokens: 3000,
       } as any);
       return {
         provider: this.provider,

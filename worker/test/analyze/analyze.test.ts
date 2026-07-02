@@ -670,8 +670,8 @@ describe('analyzeHebrew', () => {
 
   it('documents the Cloudflare LLM fallback models', () => {
     expect(WORKERS_AI_GRAMMAR_MODELS).toEqual([
-      '@cf/google/gemma-3-12b-it',
       '@cf/moonshotai/kimi-k2.6',
+      '@cf/google/gemma-3-12b-it',
     ]);
   });
 });
