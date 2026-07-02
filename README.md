@@ -41,11 +41,11 @@ for dictionary lookups and grammar analysis.
 ## Architecture
 
 ```
-┌─────────────────────────── Chrome extension (extension/) ───────────────────────────┐
-│  content script ──► background service worker ──► Cloudflare Worker (worker/)         │
-│  (double-click,        (message router,              GET  /lookup?q=…  → Pealim       │
-│   spell flags,          context menus,               POST /analyze     → grammar      │
-│   grammar flags)        offscreen OCR + spell)                                        │
+┌─────────────────────────── Chrome extension (extension/) ─────────────────────────┐
+│  content script ──► background service worker ──► Cloudflare Worker (worker/)     │
+│  (double-click,     (message router,              GET  /lookup?q=…  → Pealim      │
+│   spell flags,       context menus,               POST /analyze     → grammar     │
+│   grammar flags)     offscreen OCR + spell)                                       │
 └───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
