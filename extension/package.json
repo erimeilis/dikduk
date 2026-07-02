@@ -2,6 +2,9 @@
   "name": "extension",
   "version": "1.0.0",
   "description": "Hebrew lookup, spell-check & grammar hints. Double-click a word for translation, root & conjugation. Data from Pealim.",
+  "repository": { "type": "git", "url": "git+https://github.com/erimeilis/dikduk.git", "directory": "extension" },
+  "homepage": "https://github.com/erimeilis/dikduk#readme",
+  "bugs": { "url": "https://github.com/erimeilis/dikduk/issues" },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

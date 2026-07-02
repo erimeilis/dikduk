@@ -1,4 +1,4 @@
-Pealim Hebrew Lookup
+DikDuk
 Copyright (C) 2026
 
 This program is free software: licensed under the GNU Affero General Public
@@ -8,4 +8,8 @@ Hebrew spelling dictionary derived from the Hspell project
 (http://hspell.ivrix.org.il/), Copyright (C) 2000-2017 Nadav Har'El and
 Dan Kenigsberg, licensed under the GNU AGPL v3. The dictionary files and
 generated word lists are also under the AGPL.
-nspell (https://github.com/wooorm/nspell) Copyright (C) Titus Wormer, MIT.
+
+OCR is powered by Tesseract.js and tesseract.js-core
+(https://github.com/naptha/tesseract.js), Copyright (C) Tesseract.js
+contributors, licensed under Apache-2.0. The bundled Hebrew trained data
+(heb.traineddata) is from the Tesseract OCR project, licensed under Apache-2.0.

@@ -1,7 +1,10 @@
 {
   "name": "worker",
   "version": "1.0.0",
-  "description": "",
+  "description": "DikDuk Cloudflare Worker: Hebrew dictionary lookup (Pealim) and grammar analysis API.",
+  "repository": { "type": "git", "url": "git+https://github.com/erimeilis/dikduk.git", "directory": "worker" },
+  "homepage": "https://github.com/erimeilis/dikduk#readme",
+  "bugs": { "url": "https://github.com/erimeilis/dikduk/issues" },
   "scripts": {
     "dev": "wrangler dev",
     "dev:analyze": "wrangler dev --var DICTABERT_ANALYZER_URL:http://127.0.0.1:8788/analyze",
