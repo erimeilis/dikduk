@@ -56,7 +56,9 @@ const PROVIDER_REGISTRY: Record<AnalysisProvider, (ctx: ProviderContext) => Anal
     env.GEMINI_API_KEY ? new GeminiAnalyzer(env.GEMINI_API_KEY, env.GEMINI_MODEL, fetchImpl) : null,
 };
 
-// When no provider is requested, fall back to DictaBERT if it is configured.
+// When no provider is requested, prefer DictaBERT, then fall back to any other
+// configured provider (registry order) so a deployment without the DictaBERT
+// sidecar still analyzes via Workers AI / Gemini instead of returning NO_PROVIDER.
 const DEFAULT_PROVIDER: AnalysisProvider = 'dictabert-http';
 
 export function isAnalyzeError(result: AnalyzeResult | AnalyzeError): result is AnalyzeError {
@@ -107,8 +109,17 @@ function createAnalyzer(provider: AnalysisProvider | undefined, deps: AnalyzeDep
     fetchImpl: deps.fetchImpl ?? ((input, init) => fetch(input, init)),
     lookupImpl: deps.lookupImpl,
   };
-  const factory = PROVIDER_REGISTRY[provider ?? DEFAULT_PROVIDER];
-  return factory(ctx);
+  if (provider) return PROVIDER_REGISTRY[provider](ctx);
+
+  const candidates: AnalysisProvider[] = [
+    DEFAULT_PROVIDER,
+    ...(Object.keys(PROVIDER_REGISTRY) as AnalysisProvider[]),
+  ];
+  for (const key of candidates) {
+    const analyzer = PROVIDER_REGISTRY[key](ctx);
+    if (analyzer) return analyzer;
+  }
+  return null;
 }
 
 // Wraps the DictaBERT transport adapter: it owns rules + enrichment so the
