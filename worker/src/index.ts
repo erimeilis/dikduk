@@ -26,6 +26,7 @@ const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'x-dikduk-rev': 'autodeploy-probe-1',
 };
 
 // Build JSON responses without relying on the static Response.json() helper,
