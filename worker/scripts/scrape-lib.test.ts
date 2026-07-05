@@ -1,9 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { buildResult, collectAliases, sqlEscape, entryToSql } from './scrape-lib';
+import { buildResult, collectAliases, sqlEscape, entryToSql, slugFromLocation } from './scrape-lib';
 import type { LookupResult } from '../src/lookup/types';
 
 const html = readFileSync('test/fixtures/dict-leechol.html', 'utf-8');
+
+describe('slugFromLocation', () => {
+  it('extracts slug from a dict redirect location', () => {
+    expect(slugFromLocation('https://www.pealim.com/dict/1-lichtov/')).toBe('lichtov');
+    expect(slugFromLocation('/dict/5000-chanak/')).toBe('chanak');
+    expect(slugFromLocation('/search/?q=x')).toBeNull();
+  });
+});
 
 describe('buildResult', () => {
   it('builds a LookupResult and aliases every inflected form', () => {

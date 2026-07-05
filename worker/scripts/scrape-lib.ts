@@ -2,6 +2,11 @@ import { parseDictPage, parseDictHeader } from '../src/lookup/dict-parser';
 import { normalizeQuery } from '../src/lookup/normalize';
 import type { LookupResult, Conjugation } from '../src/lookup/types';
 
+export function slugFromLocation(location: string): string | null {
+  const m = location.match(/\/dict\/\d+-([^/?#]+)\/?/);
+  return m ? m[1] : null;
+}
+
 export function buildResult(html: string, slug: string, id: number): LookupResult {
   const head = parseDictHeader(html);
   const page = parseDictPage(html);
