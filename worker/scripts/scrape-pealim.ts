@@ -46,7 +46,9 @@ async function fetchEntry(id: number): Promise<{ slug: string; html: string } | 
 function d1Exec(sql: string): void {
   const file = join(SCRIPT_DIR, '.pealim-scrape-batch.sql');
   writeFileSync(file, sql);
-  execFileSync('npx', ['wrangler', 'd1', 'execute', 'pealim', '--remote', `--file=${file}`], { stdio: 'inherit' });
+  // -y: answer wrangler's "DB will be unavailable, proceed?" prompt automatically,
+  // so an unattended multi-hour run doesn't hang on every batch flush.
+  execFileSync('npx', ['wrangler', 'd1', 'execute', 'pealim', '--remote', '-y', `--file=${file}`], { stdio: 'inherit' });
   rmSync(file);
 }
 
