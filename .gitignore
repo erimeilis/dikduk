@@ -25,5 +25,9 @@ docs/superpowers/
 # Superpowers SDD scratch (briefs, reports, diffs, ledger)
 .superpowers/
 
+# Pealim scraper local artifacts
+worker/.pealim-scrape-checkpoint.json
+worker/.pealim-scrape-batch*.sql
+
 # OS
 .DS_Store

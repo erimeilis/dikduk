@@ -2,9 +2,15 @@
   "name": "worker",
   "version": "1.0.0",
   "description": "DikDuk Cloudflare Worker: Hebrew dictionary lookup (Pealim) and grammar analysis API.",
-  "repository": { "type": "git", "url": "git+https://github.com/erimeilis/dikduk.git", "directory": "worker" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erimeilis/dikduk.git",
+    "directory": "worker"
+  },
   "homepage": "https://github.com/erimeilis/dikduk#readme",
-  "bugs": { "url": "https://github.com/erimeilis/dikduk/issues" },
+  "bugs": {
+    "url": "https://github.com/erimeilis/dikduk/issues"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "dev:analyze": "wrangler dev --var DICTABERT_ANALYZER_URL:http://127.0.0.1:8788/analyze",
@@ -13,7 +19,8 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply pealim --local",
-    "db:migrate:prod": "wrangler d1 migrations apply pealim --remote"
+    "db:migrate:prod": "wrangler d1 migrations apply pealim --remote",
+    "scrape:pealim": "tsx scripts/scrape-pealim.ts"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +34,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.0.0",
     "better-sqlite3": "^12.11.1",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9",
     "wrangler": "^4.103.0"
