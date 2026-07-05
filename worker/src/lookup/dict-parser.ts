@@ -102,12 +102,13 @@ export interface DictHeader {
 }
 
 // The dict page has no <h1>; the lemma appears as plain text in the leading text node of
-// "<h2 class="page-header">Conjugation of <lemma> <span>...</span></h2>" (the trailing span
-// holds a print-only URL, so read only the first text node and strip the "Conjugation of" prefix).
+// "<h2 class="page-header">Conjugation of <lemma> <span>...</span></h2>" for verb pages, or
+// "Inflection of <lemma> <span>...</span>" for noun/adjective pages (the trailing span holds a
+// print-only URL, so read only the first text node and strip the leading "<Word> of" prefix).
 function lemmaFromPageHeader(root: HTMLElement): string {
   const h2 = root.querySelector('h2.page-header');
   const firstText = h2?.childNodes.find((n) => n.nodeType === 3)?.rawText ?? '';
-  return cleanText(firstText.replace(/^Conjugation of\s*/i, ''));
+  return cleanText(firstText.replace(/^(?:Conjugation|Inflection|Declension) of\s+/i, ''));
 }
 
 // The root radicals are the "Root: א - כ - ל" line — scope to the <p> whose text starts with

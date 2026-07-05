@@ -4,6 +4,7 @@ import { parseDictPage, parseDictHeader } from '../../src/lookup/dict-parser';
 
 const html = readFileSync('test/fixtures/dict-levakesh.html', 'utf-8');
 const leecholHtml = readFileSync('test/fixtures/dict-leechol.html', 'utf-8');
+const dafHtml = readFileSync('test/fixtures/dict-daf.html', 'utf-8');
 const bare = (s: string) => s.replace(/\p{Mn}/gu, '');
 
 describe('parseDictPage', () => {
@@ -70,5 +71,14 @@ describe('parseDictHeader', () => {
     expect(bare(h.lemma)).toBe('לבקש');
     expect(h.translation).toBe('to ask, to request, to seek');
     expect(h.root).toBe('ב־ק־שׁ');
+  });
+
+  it('extracts lemma, translation, root, isVerb for a non-verb (noun) page: דַּף (daf)', () => {
+    const h = parseDictHeader(dafHtml);
+    expect(h.isVerb).toBe(false);
+    expect(h.lemma).not.toMatch(/Inflection/i);
+    expect(bare(h.lemma)).toBe('דף');
+    expect(h.translation).toMatch(/page|sheet/);
+    expect(h.root.length).toBeGreaterThan(0);
   });
 });
