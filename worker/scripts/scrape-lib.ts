@@ -21,10 +21,14 @@ export function buildResult(html: string, slug: string, id: number): LookupResul
   const head = parseDictHeader(html);
   const page = parseDictPage(html);
   const inflectionKind = head.isVerb ? 'verb' : page.adjectiveForms ? 'adjective' : 'other';
+  // Store the full `id-slug` path segment (matching the live path's search-parser output and
+  // sourceUrl below), not the bare slug — the extension's Pealim link and see_also resolution
+  // both key on this full form.
+  const fullSlug = `${id}-${slug}`;
   return {
     word: normalizeQuery(head.lemma),
     lemma: head.lemma,
-    slug,
+    slug: fullSlug,
     translation: head.translation,
     root: head.root,
     isVerb: head.isVerb,
@@ -32,7 +36,7 @@ export function buildResult(html: string, slug: string, id: number): LookupResul
     ...(page.voices ? { voices: page.voices } : {}),
     ...(page.adjectiveForms ? { adjectiveForms: page.adjectiveForms } : {}),
     seeAlso: page.seeAlso,
-    sourceUrl: `https://www.pealim.com/dict/${id}-${slug}/`,
+    sourceUrl: `https://www.pealim.com/dict/${fullSlug}/`,
   };
 }
 

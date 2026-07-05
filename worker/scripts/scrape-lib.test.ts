@@ -71,7 +71,8 @@ describe('buildResult', () => {
   it('builds a LookupResult and aliases every inflected form', () => {
     const r = buildResult(html, 'leechol', 1);
     expect(r.isVerb).toBe(true);
-    expect(r.slug).toBe('leechol');
+    // slug is the full `id-slug` path segment, matching the live search-parser path.
+    expect(r.slug).toBe('1-leechol');
     expect(r.sourceUrl).toBe('https://www.pealim.com/dict/1-leechol/');
     const aliases = collectAliases(r);
     expect(aliases).toContain(r.word);

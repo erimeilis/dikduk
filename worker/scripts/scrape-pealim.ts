@@ -1,10 +1,26 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { buildResult, collectAliases, entryToSql, slugFromLocation, shouldRetryStatus, backoffMs } from './scrape-lib';
 
 const UA = 'Mozilla/5.0 (compatible; DikDuk/1.0; +https://github.com/erimeilis/dikduk)';
-const CHECKPOINT = new URL('./.pealim-scrape-checkpoint.json', import.meta.url).pathname;
+// fileURLToPath (not `new URL(...).pathname`) so paths with spaces aren't percent-encoded.
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const CHECKPOINT = join(SCRIPT_DIR, '.pealim-scrape-checkpoint.json');
 const MAX_RETRIES = 8; // ~ up to backoffMs cap of 10 min per id before giving up
+
+/** Parses a required-numeric CLI flag; throws with a clear message on NaN/empty rather than
+ * silently propagating NaN (e.g. an empty `--delay=` must not become `sleep(NaN)`, which
+ * resolves immediately and silently drops the politeness delay). */
+function numericFlag(args: Map<string, string>, name: string, fallback: number): number {
+  const raw = args.get(name);
+  if (raw === undefined) return fallback;
+  if (raw.trim() === '') throw new Error(`--${name} requires a value (got empty string)`);
+  const n = Number(raw);
+  if (Number.isNaN(n)) throw new Error(`--${name} must be a number, got "${raw}"`);
+  return n;
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -28,7 +44,7 @@ async function fetchEntry(id: number): Promise<{ slug: string; html: string } | 
 }
 
 function d1Exec(sql: string): void {
-  const file = new URL('./.pealim-scrape-batch.sql', import.meta.url).pathname;
+  const file = join(SCRIPT_DIR, '.pealim-scrape-batch.sql');
   writeFileSync(file, sql);
   execFileSync('npx', ['wrangler', 'd1', 'execute', 'pealim', '--remote', `--file=${file}`], { stdio: 'inherit' });
   rmSync(file);
@@ -36,13 +52,16 @@ function d1Exec(sql: string): void {
 
 async function main() {
   const args = new Map(process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=') as [string, string]));
-  const delaySec = Number(args.get('delay') ?? 10);
+  const delaySec = numericFlag(args, 'delay', 10);
   const delay = delaySec * 1000;
-  const stopAfter = Number(args.get('stop-after') ?? 50);
-  const batchSize = Number(args.get('batch') ?? 200);
+  const stopAfter = numericFlag(args, 'stop-after', 50);
+  // Each entry emits an upsert + ~27 alias inserts + N see_also inserts, so a large batch
+  // risks exceeding D1's per-request statement/size limits and wedging the run. Default to
+  // a conservative value; override with --batch=N if you've verified a larger size is safe.
+  const batchSize = numericFlag(args, 'batch', 25);
   const dryRun = args.has('dry-run');
-  let id = Number(args.get('from') ?? (existsSync(CHECKPOINT) ? JSON.parse(readFileSync(CHECKPOINT, 'utf8')).lastId + 1 : 1));
-  const to = args.has('to') ? Number(args.get('to')) : Infinity;
+  let id = numericFlag(args, 'from', existsSync(CHECKPOINT) ? JSON.parse(readFileSync(CHECKPOINT, 'utf8')).lastId + 1 : 1);
+  const to = args.has('to') ? numericFlag(args, 'to', Infinity) : Infinity;
 
   let misses = 0, ok = 0;
   let batch: string[] = [];
