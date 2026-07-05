@@ -7,6 +7,16 @@ export function slugFromLocation(location: string): string | null {
   return m ? m[1] : null;
 }
 
+/** True for statuses that warrant a retry-with-backoff (rate limiting or server errors); false for genuine misses (e.g. 404) or success. */
+export function shouldRetryStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+/** Exponential backoff in ms for the given (0-based) consecutive-retry attempt, capped at a max delay. Deterministic — no jitter/randomness. */
+export function backoffMs(attempt: number, baseMs: number, maxMs = 10 * 60 * 1000): number {
+  return Math.min(baseMs * 2 ** attempt, maxMs);
+}
+
 export function buildResult(html: string, slug: string, id: number): LookupResult {
   const head = parseDictHeader(html);
   const page = parseDictPage(html);

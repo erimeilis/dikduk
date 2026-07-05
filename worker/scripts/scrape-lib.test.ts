@@ -1,9 +1,63 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { buildResult, collectAliases, sqlEscape, entryToSql, slugFromLocation } from './scrape-lib';
+import {
+  buildResult,
+  collectAliases,
+  sqlEscape,
+  entryToSql,
+  slugFromLocation,
+  shouldRetryStatus,
+  backoffMs,
+} from './scrape-lib';
 import type { LookupResult } from '../src/lookup/types';
 
 const html = readFileSync('test/fixtures/dict-leechol.html', 'utf-8');
+
+describe('shouldRetryStatus', () => {
+  it('returns true for 429 (rate limited)', () => {
+    expect(shouldRetryStatus(429)).toBe(true);
+  });
+
+  it('returns true for any 5xx server error', () => {
+    expect(shouldRetryStatus(500)).toBe(true);
+    expect(shouldRetryStatus(502)).toBe(true);
+    expect(shouldRetryStatus(503)).toBe(true);
+    expect(shouldRetryStatus(599)).toBe(true);
+  });
+
+  it('returns false for 404 (genuine miss)', () => {
+    expect(shouldRetryStatus(404)).toBe(false);
+  });
+
+  it('returns false for success and other 4xx', () => {
+    expect(shouldRetryStatus(200)).toBe(false);
+    expect(shouldRetryStatus(302)).toBe(false);
+    expect(shouldRetryStatus(400)).toBe(false);
+    expect(shouldRetryStatus(403)).toBe(false);
+  });
+});
+
+describe('backoffMs', () => {
+  it('grows exponentially with attempt number', () => {
+    expect(backoffMs(0, 1000)).toBe(1000);
+    expect(backoffMs(1, 1000)).toBe(2000);
+    expect(backoffMs(2, 1000)).toBe(4000);
+    expect(backoffMs(3, 1000)).toBe(8000);
+  });
+
+  it('caps at the provided max', () => {
+    expect(backoffMs(10, 1000, 5000)).toBe(5000);
+    expect(backoffMs(2, 1000, 5000)).toBe(4000); // below cap, unaffected
+  });
+
+  it('is deterministic (no randomness) for the same inputs', () => {
+    expect(backoffMs(4, 500)).toBe(backoffMs(4, 500));
+  });
+
+  it('defaults to a sane max when none is provided', () => {
+    expect(backoffMs(30, 1000)).toBeLessThanOrEqual(10 * 60 * 1000);
+  });
+});
 
 describe('slugFromLocation', () => {
   it('extracts slug from a dict redirect location', () => {
