@@ -8,11 +8,13 @@ import type {
   AnalyzeResult,
   MorphologyLookup,
 } from './types';
+import type { CatalogueModel } from './catalogue';
 import { DictaBertHttpAnalyzer } from './providers/dictabert-http';
 import { WorkersAiAnalyzer } from './providers/workers-ai';
 import { GeminiAnalyzer } from './providers/gemini';
 import { deriveStructuralIssues } from './rules';
 import { enrichStructuralIssues } from './enrichment';
+import { WORKERS_AI_GRAMMAR_MODELS } from './llm-parsing';
 
 // Public re-exports kept stable for consumers and tests.
 export { normalizeDictaBertPayload } from './dictabert-parser';
@@ -34,6 +36,15 @@ export type {
 
 const MAX_TEXT_LENGTH = 2000;
 
+// Placeholder pricing (unused for selection order here — this list is a
+// fixed fallback, not the price-sorted KV catalogue). Task 6 replaces this
+// with the real CatalogueModel list read from KV.
+const FALLBACK_WORKERS_AI_MODELS: CatalogueModel[] = WORKERS_AI_GRAMMAR_MODELS.map((id) => ({
+  id,
+  inUsdPerM: 0,
+  outUsdPerM: 0,
+}));
+
 interface ProviderContext {
   env: AnalyzeEnv;
   fetchImpl: typeof fetch;
@@ -51,7 +62,10 @@ const PROVIDER_REGISTRY: Record<AnalysisProvider, (ctx: ProviderContext) => Anal
       lookupImpl,
     );
   },
-  'workers-ai': ({ env }) => (env.AI ? new WorkersAiAnalyzer(env.AI) : null),
+  // TODO(task 6): replace this static fallback list with the KV-sourced,
+  // price-ordered catalogue (see refresh.ts / model-registry.ts) so the
+  // registry tries the cheapest working model first and meters real usage.
+  'workers-ai': ({ env }) => (env.AI ? new WorkersAiAnalyzer(env.AI, FALLBACK_WORKERS_AI_MODELS) : null),
   'gemini': ({ env, fetchImpl }) =>
     env.GEMINI_API_KEY ? new GeminiAnalyzer(env.GEMINI_API_KEY, env.GEMINI_MODEL, fetchImpl) : null,
 };
