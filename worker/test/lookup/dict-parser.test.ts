@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { parseDictPage } from '../../src/lookup/dict-parser';
+import { parseDictPage, parseDictHeader } from '../../src/lookup/dict-parser';
 
 const html = readFileSync('test/fixtures/dict-levakesh.html', 'utf-8');
+const leecholHtml = readFileSync('test/fixtures/dict-leechol.html', 'utf-8');
 const bare = (s: string) => s.replace(/\p{Mn}/gu, '');
 
 describe('parseDictPage', () => {
@@ -51,5 +52,23 @@ describe('parseDictPage', () => {
       mp: 'חֲדָשִׁים',
       fp: 'חֲדָשׁוֹת',
     });
+  });
+});
+
+describe('parseDictHeader', () => {
+  it('extracts lemma, translation, root, isVerb for לֶאֱכוֹל (leechol)', () => {
+    const h = parseDictHeader(leecholHtml);
+    expect(h.isVerb).toBe(true);
+    expect(bare(h.lemma)).toBe('לאכול');
+    expect(h.translation).toBe('to eat');
+    expect(h.root).toBe('א־כ־ל');
+  });
+
+  it('extracts lemma, translation, root, isVerb for לְבַקֵּשׁ (levakesh)', () => {
+    const h = parseDictHeader(html);
+    expect(h.isVerb).toBe(true);
+    expect(bare(h.lemma)).toBe('לבקש');
+    expect(h.translation).toBe('to ask, to request, to seek');
+    expect(h.root).toBe('ב־ק־שׁ');
   });
 });
