@@ -29,6 +29,7 @@ docs/superpowers/
 # Pealim scraper local artifacts (written next to the script, in worker/scripts/)
 worker/scripts/.pealim-scrape-checkpoint.json
 worker/scripts/.pealim-scrape-batch*.sql
+worker/scrape.log
 
 # OS
 .DS_Store
