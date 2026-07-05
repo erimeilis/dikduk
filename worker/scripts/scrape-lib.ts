@@ -41,3 +41,49 @@ export function collectAliases(result: LookupResult): string[] {
   }
   return [...seen];
 }
+
+/** SQLite single-quote escaping: doubles each `'` so the value is safe inside a quoted literal. */
+export function sqlEscape(s: string): string {
+  return s.replace(/'/g, "''");
+}
+
+function sqlString(s: string): string {
+  return `'${sqlEscape(s)}'`;
+}
+
+function sqlNullableString(s: string | null | undefined): string {
+  return s === null || s === undefined ? 'NULL' : sqlString(s);
+}
+
+/**
+ * Builds the SQL statements to upsert one scraped entry, matching the runtime
+ * write semantics in `src/storage/d1-store.ts`: an `entries` upsert keyed on
+ * slug, one `aliases` INSERT OR IGNORE per alias (entry_id resolved via a
+ * slug subquery), and one `see_also` INSERT OR IGNORE per reference.
+ */
+export function entryToSql(result: LookupResult, aliases: string[], nowMs: number): string {
+  const statements: string[] = [];
+
+  statements.push(
+    `INSERT INTO entries (slug, lemma, root, translation, is_verb, binyan, data, source_url, fetched_at)
+VALUES (${sqlString(result.slug)}, ${sqlString(result.lemma)}, ${sqlNullableString(result.root)}, ${sqlString(result.translation)}, ${result.isVerb ? 1 : 0}, ${sqlNullableString(result.voices?.active?.binyan ?? null)}, ${sqlString(JSON.stringify(result))}, ${sqlString(result.sourceUrl)}, ${nowMs})
+ON CONFLICT(slug) DO UPDATE SET
+  lemma=excluded.lemma, root=excluded.root, translation=excluded.translation,
+  is_verb=excluded.is_verb, binyan=excluded.binyan, data=excluded.data,
+  source_url=excluded.source_url, fetched_at=excluded.fetched_at;`,
+  );
+
+  for (const alias of aliases) {
+    statements.push(
+      `INSERT OR IGNORE INTO aliases (query_key, entry_id, created_at) VALUES (${sqlString(alias)}, (SELECT id FROM entries WHERE slug=${sqlString(result.slug)}), ${nowMs});`,
+    );
+  }
+
+  for (const ref of result.seeAlso) {
+    statements.push(
+      `INSERT OR IGNORE INTO see_also (from_id, to_slug, to_id, label) VALUES ((SELECT id FROM entries WHERE slug=${sqlString(result.slug)}), ${sqlString(ref.slug)}, (SELECT id FROM entries WHERE slug=${sqlString(ref.slug)}), ${sqlString(ref.label)});`,
+    );
+  }
+
+  return statements.join('\n');
+}
