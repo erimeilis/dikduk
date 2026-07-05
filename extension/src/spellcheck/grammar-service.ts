@@ -5,6 +5,7 @@ import type { GrammarResult } from '../contracts/grammar';
 // returns a valid issues payload.
 export async function fetchGrammar(text: string): Promise<GrammarResult> {
   let lastError = 'Analyzer failed';
+  let lastCode: string | undefined;
   for (const baseUrl of ANALYZE_WORKER_URLS) {
     try {
       const res = await fetch(`${baseUrl}/analyze`, {
@@ -12,12 +13,14 @@ export async function fetchGrammar(text: string): Promise<GrammarResult> {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text }),
       });
-      const data = (await res.json()) as GrammarResult & { code?: string };
+      const data = (await res.json()) as GrammarResult;
       if (res.ok && 'issues' in data) return { issues: data.issues };
       lastError = 'error' in data ? data.error : `Analyzer returned ${res.status}`;
+      lastCode = 'code' in data ? data.code : undefined;
     } catch (e) {
       lastError = (e as Error).message;
+      lastCode = undefined;
     }
   }
-  return { error: lastError };
+  return { error: lastError, code: lastCode };
 }

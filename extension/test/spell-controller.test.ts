@@ -1,5 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { computeCandidates, SpellController } from '../src/spellcheck/controller';
+import { SpellTransport } from '../src/spellcheck/transport';
 
 const storage = {
   get: vi.fn(async () => ({})),
@@ -206,5 +207,95 @@ describe('SpellController flag hit detection', () => {
     });
     input.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 12, clientY: 34 }));
     expect(grammarHit).toBeNull();
+  });
+});
+
+describe('SpellTransport.analyzeGrammar error surfacing', () => {
+  it('surfaces a worker error instead of silently returning empty issues', async () => {
+    const messenger = {
+      sendMessage: vi.fn(async (msg: { type?: string }) => {
+        if (msg.type === 'grammar-analyze') {
+          return { error: 'No grammar models available', code: 'NO_MODELS' };
+        }
+        return { misspelled: [] };
+      }),
+    };
+    const transport = new SpellTransport(messenger);
+
+    const result = await transport.analyzeGrammar('הספר טובה');
+
+    expect(result).toEqual({ issues: [], error: 'No grammar models available', code: 'NO_MODELS' });
+  });
+
+  it('swallows genuine network exceptions into an error result instead of throwing', async () => {
+    const messenger = {
+      sendMessage: vi.fn(async () => {
+        throw new Error('network down');
+      }),
+    };
+    const transport = new SpellTransport(messenger);
+
+    const result = await transport.analyzeGrammar('הספר טובה');
+
+    expect(result).toEqual({ issues: [], error: 'network down' });
+  });
+});
+
+describe('SpellController grammar-status surfacing', () => {
+  it('dispatches a dikduk-grammar-status event when grammar analysis errors and no flags are found', async () => {
+    vi.useFakeTimers();
+    runtime.sendMessage.mockImplementation(async (msg: { type?: string }): Promise<any> => {
+      if (msg.type === 'grammar-analyze') {
+        return { error: 'No grammar models available', code: 'NO_MODELS' };
+      }
+      return { misspelled: [] };
+    });
+
+    const events: { message: string }[] = [];
+    const listener = (e: Event) => events.push((e as CustomEvent).detail);
+    window.addEventListener('dikduk-grammar-status', listener);
+
+    const controller = new SpellController();
+    await controller.start();
+
+    const textarea = document.createElement('textarea');
+    textarea.value = 'הספר טובה';
+    document.body.appendChild(textarea);
+
+    controller.rescan(textarea);
+    await vi.advanceTimersByTimeAsync(500);
+
+    window.removeEventListener('dikduk-grammar-status', listener);
+
+    expect(events).toEqual([{ message: 'No grammar models available' }]);
+    expect(document.querySelector('.dikduk-grammar')).toBeNull();
+  });
+
+  it('uses friendlier copy for a BUDGET error code', async () => {
+    vi.useFakeTimers();
+    runtime.sendMessage.mockImplementation(async (msg: { type?: string }): Promise<any> => {
+      if (msg.type === 'grammar-analyze') {
+        return { error: 'Monthly grammar budget reached', code: 'BUDGET' };
+      }
+      return { misspelled: [] };
+    });
+
+    const events: { message: string }[] = [];
+    const listener = (e: Event) => events.push((e as CustomEvent).detail);
+    window.addEventListener('dikduk-grammar-status', listener);
+
+    const controller = new SpellController();
+    await controller.start();
+
+    const textarea = document.createElement('textarea');
+    textarea.value = 'הספר טובה';
+    document.body.appendChild(textarea);
+
+    controller.rescan(textarea);
+    await vi.advanceTimersByTimeAsync(500);
+
+    window.removeEventListener('dikduk-grammar-status', listener);
+
+    expect(events).toEqual([{ message: 'Grammar paused — monthly limit reached' }]);
   });
 });

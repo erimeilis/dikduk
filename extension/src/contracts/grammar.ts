@@ -23,5 +23,5 @@ export interface GrammarIssue {
 }
 
 export interface GrammarAnalyzeResult { issues: GrammarIssue[] }
-export interface GrammarAnalyzeErrorResult { error: string }
+export interface GrammarAnalyzeErrorResult { error: string; code?: string }
 export type GrammarResult = GrammarAnalyzeResult | GrammarAnalyzeErrorResult;

@@ -4,7 +4,7 @@ import type { GrammarIssue } from '../contracts/grammar';
 import { type OverlayRange } from './overlay-renderer';
 import { computeCandidates, FlagStore } from './flag-store';
 import { Engagement } from './engagement';
-import { SpellTransport, type Messenger } from './transport';
+import { SpellTransport, type Messenger, type GrammarAnalysis } from './transport';
 import { type Editable, currentText } from './editable-locator';
 
 // Re-exported so existing importers (and tests) keep their entry point.
@@ -106,14 +106,16 @@ export class SpellController {
 
   private async run(el: Editable, text: string, isTextField: boolean): Promise<void> {
     const { tokens, norms } = computeCandidates(text, this.userDict, this.ignore);
-    const [misspelledWords, grammarIssues] = await Promise.all([
+    const [misspelledWords, grammar] = await Promise.all([
       norms.length ? this.transport.check(norms) : Promise.resolve([]),
-      shouldAnalyzeGrammar(text) ? this.transport.analyzeGrammar(text) : Promise.resolve([]),
+      shouldAnalyzeGrammar(text)
+        ? this.transport.analyzeGrammar(text)
+        : Promise.resolve<GrammarAnalysis>({ issues: [] }),
     ]);
     if (currentText(el, isTextField) !== text) return;
     const misspelled = new Set(misspelledWords);
     const flagged = tokens.filter((t) => misspelled.has(stripDiacritics(t.text)));
-    const visibleGrammarIssues = grammarIssues.filter((issue) =>
+    const visibleGrammarIssues = grammar.issues.filter((issue) =>
       !flagged.some((token) => rangesOverlap(issue, token)),
     );
     this.store.setSpellFlags(el as HTMLElement, flagged);
@@ -133,7 +135,20 @@ export class SpellController {
         }),
       );
     }
+
+    if (grammar.error && visibleGrammarIssues.length === 0) {
+      window.dispatchEvent(
+        new CustomEvent('dikduk-grammar-status', {
+          detail: { message: grammarStatusMessage(grammar.error, grammar.code) },
+        }),
+      );
+    }
   }
+}
+
+function grammarStatusMessage(error: string, code?: string): string {
+  if (code === 'BUDGET') return 'Grammar paused — monthly limit reached';
+  return error;
 }
 
 function rangesOverlap(a: { start: number; end: number }, b: { start: number; end: number }): boolean {
