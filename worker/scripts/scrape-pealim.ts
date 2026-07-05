@@ -87,6 +87,7 @@ async function main() {
     if (flushedMaxId !== null) writeCheckpoint(flushedMaxId);
   };
 
+  console.log(`Scraping from id ${id} — delay ${delay / 1000}s, batch ${batchSize} (Ctrl-C safe; resumes from checkpoint)`);
   for (; id <= to; id++) {
     let entry: Awaited<ReturnType<typeof fetchEntry>> = null;
     let attempt = 0;
@@ -115,7 +116,7 @@ async function main() {
     batchMaxId = id;
     ok++;
     if (batch.length >= batchSize) flush();
-    if (ok % 100 === 0) console.log(`ok=${ok} at id=${id}`);
+    console.log(`ok=${ok} id=${id} ${result.slug} — ${result.lemma}`);
     await sleep(delay);
   }
   flush();
