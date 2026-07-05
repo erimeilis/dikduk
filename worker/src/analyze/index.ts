@@ -8,18 +8,17 @@ import type {
   AnalyzeResult,
   MorphologyLookup,
 } from './types';
-import type { CatalogueModel } from './catalogue';
 import { DictaBertHttpAnalyzer } from './providers/dictabert-http';
 import { WorkersAiAnalyzer } from './providers/workers-ai';
 import { GeminiAnalyzer } from './providers/gemini';
 import { deriveStructuralIssues } from './rules';
 import { enrichStructuralIssues } from './enrichment';
-import { WORKERS_AI_GRAMMAR_MODELS } from './llm-parsing';
+import { readActiveModels } from './model-registry';
+import { isOverBudget, recordSpend, estimateCostUsd, type Usage } from './metering';
 
 // Public re-exports kept stable for consumers and tests.
 export { normalizeDictaBertPayload } from './dictabert-parser';
 export { deriveStructuralIssues } from './rules';
-export { WORKERS_AI_GRAMMAR_MODELS } from './llm-parsing';
 export type {
   AnalysisProvider,
   AnalysisSeverity,
@@ -36,15 +35,6 @@ export type {
 
 const MAX_TEXT_LENGTH = 2000;
 
-// Placeholder pricing (unused for selection order here — this list is a
-// fixed fallback, not the price-sorted KV catalogue). Task 6 replaces this
-// with the real CatalogueModel list read from KV.
-const FALLBACK_WORKERS_AI_MODELS: CatalogueModel[] = WORKERS_AI_GRAMMAR_MODELS.map((id) => ({
-  id,
-  inUsdPerM: 0,
-  outUsdPerM: 0,
-}));
-
 interface ProviderContext {
   env: AnalyzeEnv;
   fetchImpl: typeof fetch;
@@ -54,6 +44,13 @@ interface ProviderContext {
 // Provider registry: each entry returns a configured Analyzer, or null when the
 // environment lacks what that provider needs. `isAnalysisProvider` and the
 // default-provider resolution both derive from these keys.
+//
+// 'workers-ai' is handled separately in `analyzeHebrew` (see
+// `runWorkersAi` below): its models come from the KV-sourced, price-ordered
+// catalogue and it is metered against the monthly budget, both of which are
+// async and need `deps.kv`/`deps.month` rather than just `env`. It still
+// appears here (returning null) so `isAnalysisProvider`/default-provider
+// resolution keep working uniformly across all three provider keys.
 const PROVIDER_REGISTRY: Record<AnalysisProvider, (ctx: ProviderContext) => Analyzer | null> = {
   'dictabert-http': ({ env, fetchImpl, lookupImpl }) => {
     if (!env.DICTABERT_ANALYZER_URL) return null;
@@ -62,10 +59,7 @@ const PROVIDER_REGISTRY: Record<AnalysisProvider, (ctx: ProviderContext) => Anal
       lookupImpl,
     );
   },
-  // TODO(task 6): replace this static fallback list with the KV-sourced,
-  // price-ordered catalogue (see refresh.ts / model-registry.ts) so the
-  // registry tries the cheapest working model first and meters real usage.
-  'workers-ai': ({ env }) => (env.AI ? new WorkersAiAnalyzer(env.AI, FALLBACK_WORKERS_AI_MODELS) : null),
+  'workers-ai': () => null,
   'gemini': ({ env, fetchImpl }) =>
     env.GEMINI_API_KEY ? new GeminiAnalyzer(env.GEMINI_API_KEY, env.GEMINI_MODEL, fetchImpl) : null,
 };
@@ -83,6 +77,10 @@ export function isAnalyzeError(result: AnalyzeResult | AnalyzeError): result is 
 export function statusFor(error: AnalyzeError): number {
   if (error.code === 'BAD_REQUEST') return 400;
   if (error.code === 'NO_PROVIDER') return 503;
+  if (error.code === 'NO_MODELS') return 503;
+  // BUDGET is not a client/server error — grammar analysis is simply paused
+  // for the rest of the month, so the caller gets a 200 with an error body.
+  if (error.code === 'BUDGET') return 200;
   return 502;
 }
 
@@ -98,42 +96,86 @@ export async function analyzeHebrew(
   }
 
   const provider = isAnalysisProvider(input.provider) ? input.provider : undefined;
-  const analyzer = createAnalyzer(provider, deps);
-  if (!analyzer) {
-    return {
-      error: 'No analysis provider configured',
-      code: 'NO_PROVIDER',
-    };
-  }
-
-  return analyzer.analyze(text, {
+  const analyzeRequest: AnalyzeRequest = {
     text,
     provider,
     model: typeof input.model === 'string' ? input.model : undefined,
-  });
-}
+  };
 
-function isAnalysisProvider(provider: unknown): provider is AnalysisProvider {
-  return typeof provider === 'string' && Object.prototype.hasOwnProperty.call(PROVIDER_REGISTRY, provider);
-}
-
-function createAnalyzer(provider: AnalysisProvider | undefined, deps: AnalyzeDeps): Analyzer | null {
   const ctx: ProviderContext = {
     env: deps.env ?? {},
     fetchImpl: deps.fetchImpl ?? ((input, init) => fetch(input, init)),
     lookupImpl: deps.lookupImpl,
   };
-  if (provider) return PROVIDER_REGISTRY[provider](ctx);
+
+  // 'workers-ai' needs an async KV read (model catalogue) and budget check,
+  // so it can't live in the synchronous PROVIDER_REGISTRY. Try it explicitly
+  // when requested, or as part of default-provider fallback when no other
+  // provider is configured.
+  if (provider === 'workers-ai') {
+    return runWorkersAi(ctx.env, deps, analyzeRequest);
+  }
+  if (provider) {
+    const analyzer = PROVIDER_REGISTRY[provider](ctx);
+    if (!analyzer) return { error: 'No analysis provider configured', code: 'NO_PROVIDER' };
+    return analyzer.analyze(text, analyzeRequest);
+  }
 
   const candidates: AnalysisProvider[] = [
     DEFAULT_PROVIDER,
     ...(Object.keys(PROVIDER_REGISTRY) as AnalysisProvider[]),
   ];
   for (const key of candidates) {
+    if (key === 'workers-ai') {
+      if (!ctx.env.AI) continue;
+      const result = await runWorkersAi(ctx.env, deps, analyzeRequest);
+      // Fall through to the next candidate only when workers-ai itself isn't
+      // usable (no models configured); BUDGET and analysis outcomes are final.
+      if (!isAnalyzeError(result) || result.code !== 'NO_MODELS') return result;
+      continue;
+    }
     const analyzer = PROVIDER_REGISTRY[key](ctx);
-    if (analyzer) return analyzer;
+    if (analyzer) return analyzer.analyze(text, analyzeRequest);
   }
-  return null;
+  return { error: 'No analysis provider configured', code: 'NO_PROVIDER' };
+}
+
+// Guards the workers-ai path with the KV-sourced model catalogue and the
+// monthly spend cap, then runs the analyzer and meters successful usage.
+async function runWorkersAi(
+  env: AnalyzeEnv,
+  deps: AnalyzeDeps,
+  request: AnalyzeRequest,
+): Promise<AnalyzeResult | AnalyzeError> {
+  if (!env.AI) return { error: 'No analysis provider configured', code: 'NO_PROVIDER' };
+
+  const kv = deps.kv;
+  const month = deps.month;
+  if (kv && month && (await isOverBudget(kv, month))) {
+    return { error: 'Monthly grammar budget reached', code: 'BUDGET' };
+  }
+
+  const models = kv ? await readActiveModels(kv) : [];
+  if (models.length === 0) {
+    return { error: 'No grammar models available', code: 'NO_MODELS' };
+  }
+
+  const analyzer: Analyzer = new WorkersAiAnalyzer(env.AI, models);
+  const result = await analyzer.analyze(request.text, request);
+
+  if (!isAnalyzeError(result) && kv && month) {
+    const winningModel = models.find((m) => m.id === result.model);
+    if (winningModel) {
+      const usage = (result.raw as { usage?: Usage } | undefined)?.usage;
+      await recordSpend(kv, month, estimateCostUsd(usage, winningModel));
+    }
+  }
+
+  return result;
+}
+
+function isAnalysisProvider(provider: unknown): provider is AnalysisProvider {
+  return typeof provider === 'string' && Object.prototype.hasOwnProperty.call(PROVIDER_REGISTRY, provider);
 }
 
 // Wraps the DictaBERT transport adapter: it owns rules + enrichment so the

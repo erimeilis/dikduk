@@ -4,9 +4,18 @@ import {
   deriveStructuralIssues,
   isAnalyzeError,
   normalizeDictaBertPayload,
-  WORKERS_AI_GRAMMAR_MODELS,
 } from '../../src/analyze';
 import { parseLlmIssues } from '../../src/analyze/llm-parsing';
+import { writeActiveModels } from '../../src/analyze/model-registry';
+import { spendKey, MONTHLY_BUDGET_USD } from '../../src/analyze/metering';
+
+function fakeKv(initial: Record<string, unknown> = {}) {
+  const store = new Map<string, string>(Object.entries(initial).map(([k, v]) => [k, JSON.stringify(v)]));
+  return {
+    async get(key: string, _t: 'json') { const v = store.get(key); return v ? JSON.parse(v) : null; },
+    async put(key: string, value: string) { store.set(key, value); },
+  };
+}
 
 const dictaPayload = {
   sentences: [
@@ -669,11 +678,55 @@ describe('analyzeHebrew', () => {
     expect(result).toEqual({ error: 'Missing text', code: 'BAD_REQUEST' });
   });
 
-  it('documents the Cloudflare LLM fallback models', () => {
-    expect(WORKERS_AI_GRAMMAR_MODELS).toEqual([
-      '@cf/moonshotai/kimi-k2.6',
-      '@cf/google/gemma-3-12b-it',
-    ]);
+  it('returns NO_MODELS when the workers-ai provider is requested but KV has no active models', async () => {
+    const kv = fakeKv();
+    const ai = { run: vi.fn() } as any;
+
+    const result = await analyzeHebrew(
+      { text: 'שלום', provider: 'workers-ai' },
+      { env: { AI: ai }, kv, month: '2026-07' },
+    );
+
+    expect(result).toEqual({ error: 'No grammar models available', code: 'NO_MODELS' });
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it('returns BUDGET when the monthly grammar spend cap has been reached', async () => {
+    const kv = fakeKv({ [spendKey('2026-07')]: MONTHLY_BUDGET_USD });
+    await writeActiveModels(kv, [{ id: '@cf/x/y', inUsdPerM: 0.1, outUsdPerM: 0.2 }]);
+    const ai = { run: vi.fn() } as any;
+
+    const result = await analyzeHebrew(
+      { text: 'שלום', provider: 'workers-ai' },
+      { env: { AI: ai }, kv, month: '2026-07' },
+    );
+
+    expect(result).toEqual({ error: 'Monthly grammar budget reached', code: 'BUDGET' });
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it('runs the workers-ai analyzer with KV-sourced models and records spend on success', async () => {
+    const kv = fakeKv();
+    await writeActiveModels(kv, [{ id: '@cf/x/y', inUsdPerM: 1, outUsdPerM: 2 }]);
+    const ai = {
+      run: vi.fn(async () => ({
+        choices: [{ message: { content: JSON.stringify({ issues: [] }) } }],
+        usage: { prompt_tokens: 1_000_000, completion_tokens: 500_000 },
+      })),
+    } as any;
+
+    const result = await analyzeHebrew(
+      { text: 'שלום', provider: 'workers-ai' },
+      { env: { AI: ai }, kv, month: '2026-07' },
+    );
+
+    expect(isAnalyzeError(result)).toBe(false);
+    if (isAnalyzeError(result)) return;
+    expect(result.provider).toBe('workers-ai');
+    expect(result.model).toBe('@cf/x/y');
+    expect(ai.run).toHaveBeenCalledWith('@cf/x/y', expect.anything());
+    // 1M in @ $1/M + 0.5M out @ $2/M = 1 + 1 = 2
+    expect(await kv.get(spendKey('2026-07'), 'json')).toBeCloseTo(2);
   });
 
   it('parses issues from an OpenAI-style choices[].message.content payload (kimi)', () => {
