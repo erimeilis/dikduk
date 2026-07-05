@@ -7,7 +7,9 @@ export async function readActiveModels(kv: KVLike): Promise<CatalogueModel[]> {
   try {
     const raw = (await kv.get(ACTIVE_MODELS_KEY, 'json')) as CatalogueModel[] | null;
     if (!Array.isArray(raw)) return [];
-    return raw.filter((m) => m && typeof m.id === 'string' && typeof m.outUsdPerM === 'number');
+    return raw.filter(
+      (m) => m && typeof m.id === 'string' && typeof m.inUsdPerM === 'number' && typeof m.outUsdPerM === 'number',
+    );
   } catch {
     return [];
   }

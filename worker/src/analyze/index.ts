@@ -122,8 +122,7 @@ export async function analyzeHebrew(
   }
 
   const candidates: AnalysisProvider[] = [
-    DEFAULT_PROVIDER,
-    ...(Object.keys(PROVIDER_REGISTRY) as AnalysisProvider[]),
+    ...new Set([DEFAULT_PROVIDER, ...(Object.keys(PROVIDER_REGISTRY) as AnalysisProvider[])]),
   ];
   for (const key of candidates) {
     if (key === 'workers-ai') {

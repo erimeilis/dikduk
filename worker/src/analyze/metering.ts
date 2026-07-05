@@ -19,6 +19,11 @@ export function spendKey(month: string): string {
   return `analyze:spend:${month}`;
 }
 
+// Spend tracking is best-effort, not a hard guarantee: `recordSpend` below is
+// a non-atomic get-then-put, so concurrent /analyze requests can race and
+// undercount total spend (each reads the same pre-update value before
+// writing). The $5 cap enforced here can therefore be exceeded slightly under
+// concurrent load rather than stopped exactly at the threshold.
 export async function isOverBudget(kv: KVLike, month: string): Promise<boolean> {
   try {
     const spent = (await kv.get(spendKey(month), 'json')) as number | null;
@@ -28,6 +33,9 @@ export async function isOverBudget(kv: KVLike, month: string): Promise<boolean> 
   }
 }
 
+// Non-atomic get-then-put: concurrent callers can both read the same starting
+// value and overwrite each other's update, undercounting total spend. Good
+// enough for a soft monthly budget signal, not a hard guarantee.
 export async function recordSpend(kv: KVLike, month: string, usd: number): Promise<void> {
   const spent = ((await kv.get(spendKey(month), 'json')) as number | null) ?? 0;
   await kv.put(spendKey(month), JSON.stringify(spent + usd), { expirationTtl: 60 * 60 * 24 * 62 });
