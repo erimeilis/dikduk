@@ -12,8 +12,6 @@ export interface EngagementHandlers {
   clear(field: Editable): void;
   // Called after the debounce with a field that has Hebrew text to check.
   run(field: Editable, text: string, isTextField: boolean): void;
-  // Called on focusout to clear a field's overlay (without dropping its flags).
-  clearOverlay(field: Editable): void;
 }
 
 // Owns the input/focus listeners and the scan debounce. Delegates the actual
@@ -26,13 +24,11 @@ export class Engagement {
   start(): void {
     document.addEventListener('input', this.onInput, true);
     document.addEventListener('focusin', this.onFocusIn, true);
-    document.addEventListener('focusout', this.onFocusOut, true);
   }
 
   stop(): void {
     document.removeEventListener('input', this.onInput, true);
     document.removeEventListener('focusin', this.onFocusIn, true);
-    document.removeEventListener('focusout', this.onFocusOut, true);
   }
 
   // Scan a field's current text (used on both typing and focus, so pre-existing
@@ -61,10 +57,5 @@ export class Engagement {
   private onFocusIn = (e: Event): void => {
     const el = e.target as Editable | null;
     if (el) this.scan(el);
-  };
-
-  private onFocusOut = (e: Event): void => {
-    const field = normalizeEditable(e.target as Editable | null);
-    if (field) this.handlers.clearOverlay(field);
   };
 }

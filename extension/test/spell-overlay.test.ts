@@ -30,4 +30,22 @@ describe('OverlayRenderer', () => {
     expect((marks[0] as HTMLElement).style.textDecorationColor).toBe('#c56a00');
     r.destroy();
   });
+
+  it('follows the field scroll and tears down once the field is removed', async () => {
+    const ta = document.createElement('textarea');
+    ta.value = 'אני רוצה שלוום';
+    document.body.appendChild(ta);
+    const r = new OverlayRenderer(ta);
+    r.mark([{ start: 9, end: 14 }]);
+
+    ta.scrollTop = 7;
+    ta.dispatchEvent(new Event('scroll'));
+    expect(r.overlayEl.scrollTop).toBe(ta.scrollTop);
+
+    ta.remove();
+    window.dispatchEvent(new Event('resize'));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(r.isDestroyed).toBe(true);
+    expect(r.overlayEl.isConnected).toBe(false);
+  });
 });

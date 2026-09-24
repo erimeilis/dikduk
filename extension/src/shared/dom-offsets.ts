@@ -12,6 +12,18 @@ export interface OffsetSpan {
   end: number;
 }
 
+// Attribute tagging a contenteditable host with a stable id. Element references
+// don't cross the isolated/MAIN world boundary, so `dikduk-spell-flags` names
+// its field by this id instead.
+export const FIELD_ID_ATTR = 'data-dikduk-field';
+
+// Detail of the `dikduk-spell-flags` event (isolated -> MAIN world).
+export interface SpellFlagsDetail {
+  fieldId: string;
+  offsets: OffsetSpan[];
+  grammarOffsets: OffsetSpan[];
+}
+
 // Resolve a character offset (counted across the host's text nodes in document
 // order) to the text node + local offset that contains it.
 export function locateTextOffset(host: Node, offset: number): TextOffset | null {
