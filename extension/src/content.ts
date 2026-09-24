@@ -71,6 +71,14 @@ async function lookupAndShow(word: string, anchor: DOMRect): Promise<void> {
   }
 }
 
+function renderGrammarStatus(message: string): HTMLElement {
+  const node = document.createElement('div');
+  node.className = 'dikduk-popup dikduk-grammar-status';
+  node.setAttribute('dir', 'rtl');
+  node.textContent = message;
+  return node;
+}
+
 document.addEventListener('dblclick', async () => {
   const sel = window.getSelection();
   const text = sel?.toString() ?? '';
@@ -102,6 +110,16 @@ document.addEventListener('input', (e) => {
     dismiss();
   }
 }, true);
+
+// Grammar analysis failed (NO_MODELS / BUDGET / UPSTREAM, or a network error) — show a
+// small non-blocking note near the field instead of silently doing nothing.
+window.addEventListener('dikduk-grammar-status', (e) => {
+  const message = (e as CustomEvent<{ message?: string }>).detail?.message;
+  if (!message) return;
+  const field = document.activeElement as HTMLElement | null;
+  const anchor = field ? field.getBoundingClientRect() : new DOMRect(lastPointer.x, lastPointer.y, 0, 0);
+  showNode(renderGrammarStatus(message), anchor);
+});
 
 // Context-menu lookups arrive as a 'render' message from the background worker.
 document.addEventListener(

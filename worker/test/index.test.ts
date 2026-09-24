@@ -65,3 +65,28 @@ describe('worker.fetch', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('worker.scheduled', () => {
+  function fakeKv() {
+    const s = new Map<string, string>();
+    return {
+      async get(k: string, _t: 'json') { const v = s.get(k); return v ? JSON.parse(v) : null; },
+      async put(k: string, v: string) { s.set(k, v); },
+      _s: s,
+    };
+  }
+
+  it('refreshes the grammar model catalogue into KV', async () => {
+    const PRICING = '| @cf/good/a | $0.03 per M input tokens  $0.04 per M output tokens | n |';
+    vi.stubGlobal('fetch', (async () => new Response(PRICING, { status: 200 })) as any);
+    const ai = { run: vi.fn(async () => ({ choices: [{ message: { content: '{"issues":[]}' } }] })) };
+    const kv = fakeKv();
+
+    await (worker as any).scheduled({} as any, { ...env, AI: ai, PEALIM_CACHE: kv }, {} as any);
+    vi.unstubAllGlobals();
+
+    const stored = await kv.get('analyze:models:v1', 'json');
+    expect(stored).not.toBeNull();
+    expect(stored.length).toBeGreaterThan(0);
+  });
+});

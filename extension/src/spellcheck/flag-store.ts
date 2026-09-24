@@ -63,17 +63,23 @@ export class FlagStore {
     this.grammarFlags.set(el, issues);
   }
 
+  spellFlagsFor(el: HTMLElement): Token[] {
+    return this.spellFlags.get(el) ?? [];
+  }
+
+  grammarFlagsFor(el: HTMLElement): GrammarIssue[] {
+    return this.grammarFlags.get(el) ?? [];
+  }
+
   overlayFor(field: HTMLInputElement | HTMLTextAreaElement): OverlayRenderer {
     let ov = this.overlays.get(field);
-    if (!ov) {
+    // An overlay tears itself down when its field leaves the DOM; if the field
+    // is re-attached and flagged again, start a fresh one.
+    if (!ov || ov.isDestroyed) {
       ov = new OverlayRenderer(field);
       this.overlays.set(field, ov);
     }
     return ov;
-  }
-
-  clearOverlay(el: HTMLElement): void {
-    this.overlays.get(el)?.clear();
   }
 
   clear(el: HTMLElement): void {

@@ -48,18 +48,30 @@ export class SpellTransport {
     }
   }
 
-  async analyzeGrammar(text: string): Promise<GrammarIssue[]> {
+  async analyzeGrammar(text: string): Promise<GrammarAnalysis> {
     try {
       const res = (await this.messenger.sendMessage({
         type: 'grammar-analyze',
         text,
       } satisfies GrammarAnalyzeRequest)) as GrammarResult | undefined;
-      return res && 'issues' in res ? res.issues.filter((issue) => isValidIssue(issue, text.length)) : [];
+      if (res && 'error' in res && res.error) {
+        return { issues: [], error: res.error, code: res.code };
+      }
+      if (res && 'issues' in res) {
+        return { issues: res.issues.filter((issue) => isValidIssue(issue, text.length)) };
+      }
+      return { issues: [] };
     } catch (e) {
       console.error('[dikduk] grammar analyze failed:', e);
-      return [];
+      return { issues: [], error: (e as Error).message };
     }
   }
+}
+
+export interface GrammarAnalysis {
+  issues: GrammarIssue[];
+  error?: string;
+  code?: string;
 }
 
 function isValidIssue(issue: GrammarIssue, textLength: number): boolean {

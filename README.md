@@ -19,11 +19,11 @@ the [Hspell](http://hspell.ivrix.org.il/) project.
 
 ## Packages
 
-| Path         | What it is                          | Details                          |
-|--------------|-------------------------------------|----------------------------------|
-| `extension/` | Chrome MV3 extension (TypeScript)   | [extension/README.md](extension/README.md) |
-| `worker/`    | Cloudflare Worker HTTP API (TypeScript) | [worker/README.md](worker/README.md) |
-| `docs/`      | Design and feature notes            | —                                |
+| Path | What it is | Details |
+| --- | --- | --- |
+| `extension/` | Chrome MV3 extension (TypeScript) | [extension/README.md](extension/README.md) |
+| `worker/` | Cloudflare Worker HTTP API (TypeScript) | [worker/README.md](worker/README.md) |
+| `docs/` | Architecture and design notes | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
 The extension is the user-facing product. The Worker is a small public API that the extension calls
 for dictionary lookups and grammar analysis.
@@ -58,6 +58,8 @@ for dictionary lookups and grammar analysis.
 - Dictionary lookups and grammar analysis are the only calls that reach the Worker.
 - The Worker scrapes and caches [Pealim](https://www.pealim.com) (KV + D1) for lookups, and delegates
   grammar analysis to a configured provider (DictaBERT, Workers AI, or Gemini).
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how each part is built and works internally.
 
 ---
 

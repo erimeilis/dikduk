@@ -44,4 +44,5 @@ export const POPUP_CSS = `
 .dikduk-popup .dikduk-grammar-suggestions-title { color: #555; font-size: 12px; font-weight: 600; }
 .dikduk-popup .dikduk-grammar-suggestion { margin-top: 4px; color: #137333; font-size: 13px; }
 .dikduk-popup .dikduk-grammar-replacement { margin-top: 4px; color: #137333; font-size: 13px; }
+.dikduk-popup.dikduk-grammar-status { max-width: 320px; background: #fff8ec; color: #7a3f00; border-color: #e3c48f; padding: 6px 10px; font-size: 13px; }
 `;

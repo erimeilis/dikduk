@@ -1,21 +1,6 @@
 import type { GrammarIssue, GrammarReplacement } from './types';
 import { readString, readStringArray } from '../shared/parse';
 
-// kimi-k2.6 is first (the default) because gemma-3-12b-it is not enabled on
-// every account (returns Workers AI error 5018). kimi is broadly accessible.
-export const WORKERS_AI_GRAMMAR_MODELS = [
-  '@cf/moonshotai/kimi-k2.6',
-  '@cf/google/gemma-3-12b-it',
-] as const;
-
-const DEFAULT_WORKERS_AI_MODEL = WORKERS_AI_GRAMMAR_MODELS[0];
-
-export function pickWorkersAiModel(model: string | undefined): (typeof WORKERS_AI_GRAMMAR_MODELS)[number] {
-  return WORKERS_AI_GRAMMAR_MODELS.includes(model as any)
-    ? (model as (typeof WORKERS_AI_GRAMMAR_MODELS)[number])
-    : DEFAULT_WORKERS_AI_MODEL;
-}
-
 export function grammarMessages(text: string): { role: 'system' | 'user'; content: string }[] {
   return [
     {

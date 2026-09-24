@@ -14,3 +14,6 @@ binding = "DB"
 database_name = "pealim"
 database_id = "ea877319-aad2-49fa-9ae7-f2a0fe311714"
 migrations_dir = "migrations"
+
+[triggers]
+crons = ["0 6 * * *"]

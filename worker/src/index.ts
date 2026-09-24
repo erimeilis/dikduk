@@ -6,6 +6,7 @@ import {
   statusFor as analyzeStatusFor,
   type AnalyzeEnv,
 } from './analyze';
+import { refreshModels } from './analyze/refresh';
 
 // PEALIM_CACHE is typed as the narrow KVLike our code uses, not the
 // workers-types `KVNamespace` global. The runtime binding is a full
@@ -37,51 +38,62 @@ function json(body: unknown, status: number): Response {
   });
 }
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS });
+async function fetch(request: Request, env: Env): Promise<Response> {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS });
+  }
+
+  const url = new URL(request.url);
+  if (url.pathname === '/analyze') {
+    if (request.method !== 'POST') {
+      return json({ error: 'Method not allowed', code: 'BAD_REQUEST' }, 405);
     }
 
-    const url = new URL(request.url);
-    if (url.pathname === '/analyze') {
-      if (request.method !== 'POST') {
-        return json({ error: 'Method not allowed', code: 'BAD_REQUEST' }, 405);
-      }
-
-      let body: unknown;
-      try {
-        body = await request.json();
-      } catch {
-        return json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' }, 400);
-      }
-
-      const store = env.DB ? createD1Store(env.DB) : null;
-      const result = await analyzeHebrew(body, {
-        env: env as AnalyzeEnv,
-        lookupImpl: (query) => lookup(query, {
-          kv: env.PEALIM_CACHE ?? null,
-          store,
-        }),
-      });
-      const status = isAnalyzeError(result) ? analyzeStatusFor(result) : 200;
-      return json(result, status);
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' }, 400);
     }
 
-    if (url.pathname !== '/lookup') {
-      return json({ error: 'Not found', code: 'NO_RESULTS' }, 404);
-    }
-
-    const q = url.searchParams.get('q') ?? '';
-    if (!q.trim()) {
-      return json({ error: 'Missing q parameter', code: 'NO_RESULTS' }, 400);
-    }
-
-    const result = await lookup(q, {
-      kv: env.PEALIM_CACHE ?? null,
-      store: env.DB ? createD1Store(env.DB) : null,
+    const store = env.DB ? createD1Store(env.DB) : null;
+    const month = new Date().toISOString().slice(0, 7);
+    const result = await analyzeHebrew(body, {
+      env: env as AnalyzeEnv,
+      lookupImpl: (query) => lookup(query, {
+        kv: env.PEALIM_CACHE ?? null,
+        store,
+      }),
+      kv: env.PEALIM_CACHE,
+      month,
     });
-    const status = isError(result) ? lookupStatusFor(result) : 200;
+    const status = isAnalyzeError(result) ? analyzeStatusFor(result) : 200;
     return json(result, status);
-  },
-};
+  }
+
+  if (url.pathname !== '/lookup') {
+    return json({ error: 'Not found', code: 'NO_RESULTS' }, 404);
+  }
+
+  const q = url.searchParams.get('q') ?? '';
+  if (!q.trim()) {
+    return json({ error: 'Missing q parameter', code: 'NO_RESULTS' }, 400);
+  }
+
+  const result = await lookup(q, {
+    kv: env.PEALIM_CACHE ?? null,
+    store: env.DB ? createD1Store(env.DB) : null,
+  });
+  const status = isError(result) ? lookupStatusFor(result) : 200;
+  return json(result, status);
+}
+
+// Daily cron (see wrangler.toml [triggers]): keeps the KV-cached model
+// catalogue fresh so /analyze's workers-ai provider always has working,
+// price-ordered models instead of failing with NO_MODELS.
+async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+  if (!env.AI) return;
+  await refreshModels({ ai: env.AI, kv: env.PEALIM_CACHE, fetchImpl: globalThis.fetch });
+}
+
+export default { fetch, scheduled };

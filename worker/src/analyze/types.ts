@@ -1,4 +1,5 @@
 import type { LookupResult, LookupError } from '../lookup/types';
+import type { KVLike } from '../lookup';
 
 export type AnalysisProvider = 'dictabert-http' | 'workers-ai' | 'gemini';
 export type AnalysisSeverity = 'info' | 'warning' | 'error';
@@ -55,7 +56,7 @@ export interface AnalyzeResult {
   raw?: unknown;
 }
 
-export type AnalyzeErrorCode = 'BAD_REQUEST' | 'NO_PROVIDER' | 'UPSTREAM' | 'PARSE';
+export type AnalyzeErrorCode = 'BAD_REQUEST' | 'NO_PROVIDER' | 'UPSTREAM' | 'PARSE' | 'NO_MODELS' | 'BUDGET';
 
 export interface AnalyzeError {
   error: string;
@@ -76,6 +77,8 @@ export interface AnalyzeDeps {
   env?: AnalyzeEnv;
   fetchImpl?: typeof fetch;
   lookupImpl?: MorphologyLookup;
+  kv?: KVLike;
+  month?: string;
 }
 
 export interface Analyzer {

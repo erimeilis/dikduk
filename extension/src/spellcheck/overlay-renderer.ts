@@ -13,6 +13,9 @@ export interface OverlayRange {
 export class OverlayRenderer {
   readonly overlayEl: HTMLDivElement;
   private field: HTMLInputElement | HTMLTextAreaElement;
+  private readonly resizeObserver: ResizeObserver | undefined;
+  private frame = 0;
+  private destroyed = false;
 
   constructor(field: HTMLInputElement | HTMLTextAreaElement) {
     this.field = field;
@@ -22,9 +25,44 @@ export class OverlayRenderer {
       'position:absolute;pointer-events:none;color:transparent;overflow:hidden;z-index:2147483646;';
     document.body.appendChild(this.overlayEl);
     this.syncStyle();
+    // Flags outlive focus, so the overlay must follow the field on its own:
+    // its internal scroll, scrolling ancestors, resizes and page layout changes
+    // (a body resize), and the field going away.
+    field.addEventListener('scroll', this.onFieldScroll, { passive: true });
+    document.addEventListener('scroll', this.scheduleSync, { capture: true, passive: true });
+    window.addEventListener('resize', this.scheduleSync);
+    this.resizeObserver = typeof ResizeObserver === 'undefined'
+      ? undefined
+      : new ResizeObserver(this.scheduleSync);
+    this.resizeObserver?.observe(field);
+    this.resizeObserver?.observe(document.body);
   }
 
+  get isDestroyed(): boolean {
+    return this.destroyed;
+  }
+
+  private onFieldScroll = (): void => {
+    this.overlayEl.scrollTop = this.field.scrollTop;
+    this.overlayEl.scrollLeft = this.field.scrollLeft;
+  };
+
+  // Coalesce bursts (scroll, observer callbacks) into one sync per frame.
+  private scheduleSync = (): void => {
+    if (this.frame) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = 0;
+      this.syncStyle();
+    });
+  };
+
   private syncStyle(): void {
+    // A detached field leaves nothing to underline: tear down instead of
+    // floating ghost underlines (FlagStore makes a fresh one if it returns).
+    if (!this.field.isConnected) {
+      this.destroy();
+      return;
+    }
     const cs = getComputedStyle(this.field);
     for (const k of COPIED_STYLES) (this.overlayEl.style as unknown as Record<string, string>)[k] = cs[k];
     const rect = this.field.getBoundingClientRect();
@@ -60,7 +98,7 @@ export class OverlayRenderer {
       cursor = r.end;
     }
     this.overlayEl.appendChild(document.createTextNode(v.slice(cursor)));
-    this.overlayEl.scrollTop = this.field.scrollTop;
+    this.onFieldScroll();
   }
 
   clear(): void {
@@ -68,6 +106,13 @@ export class OverlayRenderer {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    if (this.frame) cancelAnimationFrame(this.frame);
+    this.field.removeEventListener('scroll', this.onFieldScroll);
+    document.removeEventListener('scroll', this.scheduleSync, { capture: true });
+    window.removeEventListener('resize', this.scheduleSync);
+    this.resizeObserver?.disconnect();
     this.overlayEl.remove();
   }
 }

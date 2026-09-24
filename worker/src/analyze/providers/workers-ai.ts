@@ -1,32 +1,43 @@
-import type { Analyzer, AnalyzeError, AnalyzeRequest, AnalyzeResult } from '../types';
-import { grammarMessages, parseLlmIssues, pickWorkersAiModel } from '../llm-parsing';
+import type { Analyzer, AnalyzeError, AnalyzeResult } from '../types';
+import type { CatalogueModel } from '../catalogue';
+import { grammarMessages, parseLlmIssues } from '../llm-parsing';
 
+// Tries each model in `models` (price-ordered, cheapest first) in turn and
+// returns on the first success. Models can be disabled per-account (Workers
+// AI error 5018) or otherwise unavailable, so falling through keeps analysis
+// working without a deploy when the cheapest model is unreachable.
 export class WorkersAiAnalyzer implements Analyzer {
   provider = 'workers-ai' as const;
 
-  constructor(private readonly ai: Ai) {}
+  constructor(
+    private readonly ai: Ai,
+    private readonly models: CatalogueModel[],
+  ) {}
 
-  async analyze(text: string, request: AnalyzeRequest): Promise<AnalyzeResult | AnalyzeError> {
-    const model = pickWorkersAiModel(request.model);
-    try {
-      const raw = await this.ai.run(model, {
-        messages: grammarMessages(text),
-        response_format: { type: 'json_object' },
-        temperature: 0,
-        // kimi-k2.6 is a reasoning model — it spends tokens on reasoning before
-        // emitting the JSON answer, so 700 left `content` empty. Give it room.
-        max_tokens: 3000,
-      } as any);
-      return {
-        provider: this.provider,
-        model,
-        text,
-        tokens: [],
-        issues: parseLlmIssues(text, raw),
-        raw,
-      };
-    } catch (e) {
-      return { error: `Workers AI analysis failed: ${(e as Error).message}`, code: 'UPSTREAM' };
+  async analyze(text: string): Promise<AnalyzeResult | AnalyzeError> {
+    let lastError = 'no model available';
+    for (const model of this.models) {
+      try {
+        const raw = await this.ai.run(model.id as keyof AiModels, {
+          messages: grammarMessages(text),
+          response_format: { type: 'json_object' },
+          temperature: 0,
+          // kimi-k2.6 is a reasoning model — it spends tokens on reasoning before
+          // emitting the JSON answer, so 700 left `content` empty. Give it room.
+          max_tokens: 3000,
+        } as any);
+        return {
+          provider: this.provider,
+          model: model.id,
+          text,
+          tokens: [],
+          issues: parseLlmIssues(text, raw),
+          raw,
+        };
+      } catch (e) {
+        lastError = (e as Error).message;
+      }
     }
+    return { error: `Workers AI analysis failed: ${lastError}`, code: 'UPSTREAM' };
   }
 }
