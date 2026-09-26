@@ -64,6 +64,22 @@ describe('worker.fetch', () => {
     expect(body.issues.map((issue: any) => issue.id)).toContain('adjective_agreement');
     vi.unstubAllGlobals();
   });
+
+  it('translates through POST /translate', async () => {
+    const ai = { run: vi.fn(async () => ({ response: 'Settings' })) };
+    const res = await worker.fetch(new Request('https://w/translate', {
+      method: 'POST',
+      body: JSON.stringify({ text: 'הגדרות' }),
+    }), { ...env, AI: ai });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ translation: 'Settings' });
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+
+  it('405s a GET on /translate', async () => {
+    const res = await worker.fetch(new Request('https://w/translate'), env);
+    expect(res.status).toBe(405);
+  });
 });
 
 describe('worker.scheduled', () => {

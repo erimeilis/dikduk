@@ -59,6 +59,29 @@ Providers (selected via the `provider` field, else the default):
 | `NO_PROVIDER` | 503  | No analysis provider configured  |
 | `PARSE`       | 502  | Could not parse provider response|
 
+### `POST /translate`
+
+Translates a short Hebrew UI label (menu item, button, setting) to English — used by the macOS
+companion. Body: `{ "text": string }`, at most 200 characters, must contain Hebrew. Returns
+`{ "translation": string }`.
+
+```bash
+curl -X POST http://localhost:8787/translate \
+  -H 'content-type: application/json' \
+  -d '{"text":"הגדרות"}'
+# {"translation":"Settings"}
+```
+
+Runs Workers AI `@cf/meta/llama-3.3-70b-instruct-fp8-fast` with a UI-label prompt. Results are cached
+in KV **forever**, keyed by model + niqqud-free text, so a model change starts a fresh cache. Model
+calls are metered against the same monthly budget as `/analyze`.
+
+| Code          | HTTP | Meaning                                   |
+|---------------|------|-------------------------------------------|
+| `BAD_REQUEST` | 400  | Missing text, over 200 chars, or no Hebrew|
+| `BUDGET`      | 200  | Monthly AI budget reached (paused)        |
+| `UPSTREAM`    | 502  | Model call failed or returned no text     |
+
 ---
 
 ## Prerequisites
@@ -109,9 +132,9 @@ Configured in `wrangler.toml`:
 
 | Binding         | Type | Purpose                                  |
 |-----------------|------|------------------------------------------|
-| `PEALIM_CACHE`  | KV   | Lookup response cache (30-day TTL)       |
+| `PEALIM_CACHE`  | KV   | Lookup response cache (30-day TTL); `/translate` cache (no TTL) |
 | `DB`            | D1   | `pealim` database (persisted lookups)    |
-| `AI`            | AI   | Workers AI (for the `workers-ai` provider)|
+| `AI`            | AI   | Workers AI (`workers-ai` grammar provider, `/translate`)|
 
 Optional environment variables / secrets for grammar providers: `DICTABERT_ANALYZER_URL`,
 `DICTABERT_ANALYZER_TOKEN`, `GEMINI_API_KEY`, `GEMINI_MODEL`.
@@ -128,9 +151,10 @@ worker/
 ├── migrations/              # D1 schema migrations
 ├── scripts/                 # DictaBERT Python analyzer sidecar
 ├── src/
-│   ├── index.ts             # fetch handler: routes /lookup and /analyze
+│   ├── index.ts             # fetch handler: routes /lookup, /analyze, /translate
 │   ├── lookup/              # Pealim search/dict parsing, tiered lookup
 │   ├── analyze/             # grammar analysis: providers, rules, enrichment
+│   ├── translate/           # UI-label translation (Workers AI, KV-cached forever)
 │   ├── storage/             # D1 store
 │   └── shared/              # fetch, HTML parse, Hebrew helpers
 └── test/                    # Vitest tests + fixtures

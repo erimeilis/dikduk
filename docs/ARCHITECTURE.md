@@ -173,8 +173,19 @@ disabled). Instead:
 | Store | Binding | Contents |
 |-------|---------|----------|
 | D1 | `DB` | `pealim` database — tables `entries`, `aliases`, `see_also` (`migrations/0001_init.sql`) |
-| KV | `PEALIM_CACHE` | Lookup cache (`lookup:v3:*`), the model registry (`analyze:models:v1`), and the monthly spend counter (`analyze:spend:*`) |
-| Workers AI | `AI` | Inference for the `workers-ai` grammar provider |
+| KV | `PEALIM_CACHE` | Lookup cache (`lookup:v3:*`), the model registry (`analyze:models:v1`), the monthly spend counter (`analyze:spend:*`), and UI-label translations (`translate:v2:<model>:*`, no TTL) |
+| Workers AI | `AI` | Inference for the `workers-ai` grammar provider and `/translate` |
+
+### UI-label translation
+
+`POST /translate` (`src/translate/`) turns a short Hebrew UI label into its
+English label for the macOS companion. It runs
+`@cf/meta/llama-3.3-70b-instruct-fp8-fast` with a fixed "translate this software
+UI label" system prompt: in a 20-label probe of real Chrome strings it got 19
+right, where the dedicated MT model `m2m100-1.2b` got about 8 (it translated
+labels as prose — הגדרות → "settled"). Results are cached in KV forever; the key
+includes the model id, so changing the model starts a fresh cache. Model calls
+share the monthly budget with `/analyze` (a spent budget returns 200 `BUDGET`).
 
 ### Pealim warm-cache scraper
 
@@ -197,6 +208,25 @@ first read), identically to entries fetched live.
 
 ---
 
+## macOS companion
+
+`macos/` is a SwiftPM menu-bar app that translates the UI of any Mac app — the
+part a Chrome extension cannot reach (Chrome's own menus, toolbar, dialogs).
+
+- **`DikDukCore`** (unit-tested): `HebrewText` (same term rules as
+  `extension/src/shared/hebrew.ts`), `WorkerClient` (`GET /lookup`,
+  `POST /translate`, 8 s timeout, errors mapped from the worker's `code`), and
+  `LookupCache` (5,000-entry LRU persisted to `~/Library/Caches/DikDuk/cache.json`).
+- **`DikDukApp`**: `ModifierWatcher` polls the modifier state and pointer every
+  50 ms; `AXReader` reads the element under the pointer via the Accessibility API
+  (title → description → value → help, up to 3 parents, never secure fields) and
+  sets `AXManualAccessibility` so Chromium exposes its web content;
+  `PanelController` debounces 120 ms, then fetches the phrase translation and up to
+  6 term lookups in parallel into a floating, click-through `NSPanel`;
+  `ClickInterceptor` (a session event tap) swallows the ⌥+click that pins it.
+
+---
+
 ## Data flow and privacy
 
 - **Spell-check never leaves the browser** — it runs in the offscreen document
@@ -205,5 +235,8 @@ first read), identically to entries fetched live.
   the Worker. Lookups carry a single word; grammar analysis carries the field
   text (capped at 2000 characters) and is only sent for fields with enough
   Hebrew to analyze.
+- The **macOS companion** sends the Hebrew label under the pointer (at most 200
+  characters) to `/translate` and its terms to `/lookup`, only while the trigger
+  modifier is held. Password fields are never read.
 - Provider API keys (Gemini) live server-side in the Worker, never in the
   extension.
