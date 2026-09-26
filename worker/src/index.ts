@@ -7,6 +7,12 @@ import {
   type AnalyzeEnv,
 } from './analyze';
 import { refreshModels } from './analyze/refresh';
+import {
+  translateHebrew,
+  isTranslateError,
+  statusFor as translateStatusFor,
+  type TranslateAi,
+} from './translate';
 
 // PEALIM_CACHE is typed as the narrow KVLike our code uses, not the
 // workers-types `KVNamespace` global. The runtime binding is a full
@@ -69,6 +75,26 @@ async function fetch(request: Request, env: Env): Promise<Response> {
     });
     const status = isAnalyzeError(result) ? analyzeStatusFor(result) : 200;
     return json(result, status);
+  }
+
+  if (url.pathname === '/translate') {
+    if (request.method !== 'POST') {
+      return json({ error: 'Method not allowed', code: 'BAD_REQUEST' }, 405);
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' }, 400);
+    }
+
+    const result = await translateHebrew(body, {
+      ai: env.AI as unknown as TranslateAi | undefined,
+      kv: env.PEALIM_CACHE ?? null,
+      month: new Date().toISOString().slice(0, 7),
+    });
+    return json(result, isTranslateError(result) ? translateStatusFor(result) : 200);
   }
 
   if (url.pathname !== '/lookup') {

@@ -23,6 +23,7 @@ the [Hspell](http://hspell.ivrix.org.il/) project.
 | --- | --- | --- |
 | `extension/` | Chrome MV3 extension (TypeScript) | [extension/README.md](extension/README.md) |
 | `worker/` | Cloudflare Worker HTTP API (TypeScript) | [worker/README.md](worker/README.md) |
+| `macos/` | macOS menu-bar companion (Swift) — hover translation of any app's UI | [macos/README.md](macos/README.md) |
 | `docs/` | Architecture and design notes | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
 The extension is the user-facing product. The Worker is a small public API that the extension calls
