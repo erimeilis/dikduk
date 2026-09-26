@@ -1,10 +1,11 @@
 # DikDuk — Privacy Policy
 
-_Last updated: 2026-07-03_
+_Last updated: 2026-09-26_
 
-DikDuk is a browser extension for reading and writing Hebrew: dictionary lookup,
-spell-check, and grammar hints. This policy describes exactly what data the
-extension handles.
+DikDuk is a browser extension for reading and writing Hebrew (dictionary lookup,
+spell-check, and grammar hints) and an optional macOS companion app that
+translates the Hebrew interface of other Mac apps. This policy describes exactly
+what data each of them handles.
 
 ## What the extension accesses
 
@@ -17,6 +18,15 @@ extension handles.
 
 The extension acts only on Hebrew text; other content is ignored.
 
+## What the macOS companion accesses
+
+- **The text of the interface element under your pointer** — a menu item,
+  button, setting, or the value of a field — read through the macOS
+  Accessibility API, **only while you hold the trigger key** (⌥ by default) and
+  only when that text contains Hebrew. Password fields are never read.
+- It needs the macOS **Accessibility** permission for this, which you grant in
+  System Settings and can revoke at any time.
+
 ## What is sent off your device, and where
 
 - **Dictionary lookups and grammar checks** send the specific word or text being
@@ -28,6 +38,12 @@ The extension acts only on Hebrew text; other content is ignored.
   cache is keyed by the word itself (Hebrew dictionary terms), not by you.
 - **Grammar text** is sent to Cloudflare Workers AI for analysis and is not
   stored by the DikDuk backend.
+- **The macOS companion** sends the Hebrew text under the pointer (at most 200
+  characters) to the same backend's `/translate` endpoint, which translates it
+  with **Cloudflare Workers AI**, and sends its individual words to `/lookup`.
+  Translations are **cached by the backend indefinitely**, keyed by the text
+  itself (not by you), so a label is only translated once. Because a field's
+  value can be text you typed, avoid holding the trigger key over private text.
 
 ## What never leaves your device
 
@@ -37,6 +53,8 @@ The extension acts only on Hebrew text; other content is ignored.
   the extracted words you choose to look up are then sent, like any other lookup.
 - **Your personal dictionary** (words you add) and the **spell-check on/off
   setting** are stored locally in the browser (`chrome.storage.local`).
+- **The macOS companion's settings** (enabled, trigger key) and its **local
+  cache of results** (`~/Library/Caches/DikDuk/cache.json`) stay on your Mac.
 
 ## What DikDuk does not do
 
@@ -47,7 +65,8 @@ The extension acts only on Hebrew text; other content is ignored.
 ## Third parties
 
 - **Pealim** (https://www.pealim.com) — source of dictionary data.
-- **Cloudflare** — hosts the backend and provides AI grammar analysis.
+- **Cloudflare** — hosts the backend and provides AI grammar analysis and
+  UI-label translation.
 
 ## Contact
 

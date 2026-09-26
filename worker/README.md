@@ -1,10 +1,11 @@
 # DikDuk — worker
 
-**Cloudflare Worker HTTP API for Hebrew dictionary lookup and grammar analysis.**
+**Cloudflare Worker HTTP API for Hebrew dictionary lookup, grammar analysis, and UI-label translation.**
 
 Written in TypeScript and deployed with [Wrangler](https://developers.cloudflare.com/workers/wrangler/).
-It is the backend for the [DikDuk extension](../extension/README.md). The API is public and
-unauthenticated (CORS is wildcard) so the extension can call it from any page.
+It is the backend for the [DikDuk extension](../extension/README.md) and the
+[macOS companion](../macos/README.md). The API is public and unauthenticated (CORS is wildcard) so
+the extension can call it from any page.
 
 ---
 

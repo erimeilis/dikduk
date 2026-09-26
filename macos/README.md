@@ -3,6 +3,19 @@
 Menu-bar companion: hold **⌥** (or ⌃⌥) and point at Hebrew text in any app — menus,
 buttons, settings — to see its English meaning and a Pealim breakdown of each term.
 
+## Download
+
+Prebuilt app: `DikDuk-macos-<version>.zip` on the repository's
+[Releases](https://github.com/erimeilis/dikduk/releases) page (tags `macos-v*`). Unzip, move
+`DikDuk.app` to Applications, then **right-click › Open** the first time — it is signed with a local
+self-signed identity, not an Apple Developer ID, so Gatekeeper blocks a plain double-click. Requires
+macOS 15 or later.
+
+To publish a new build: `scripts/bundle.sh`, then
+`ditto -c -k --keepParent build/DikDuk.app build/DikDuk-macos-<version>.zip` and attach the zip to a
+`macos-v<version>` release (`gh release create`). Bump `CFBundleShortVersionString` in
+`Resources/Info.plist` first.
+
 ## Build and run
 
 ```bash

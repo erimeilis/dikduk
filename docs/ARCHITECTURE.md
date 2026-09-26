@@ -2,19 +2,22 @@
 
 How DikDuk is built and how it works internally. For build, test, and deploy
 instructions see the package READMEs ([extension](../extension/README.md),
-[worker](../worker/README.md)); for the public API surface see the
+[worker](../worker/README.md), [macos](../macos/README.md)); for the public API surface see the
 [worker README endpoints](../worker/README.md#endpoints). This document covers
 the internals behind those.
 
-DikDuk has two halves:
+DikDuk has three parts:
 
 - **`extension/`** — a Chrome MV3 extension (TypeScript, Vite, `@crxjs/vite-plugin`).
-  The user-facing product.
+  The in-browser product.
+- **`macos/`** — a macOS menu-bar companion (Swift, SwiftPM, AppKit + SwiftUI) that
+  translates the Hebrew UI of any Mac app, including Chrome's own menus and
+  settings, which an extension cannot reach.
 - **`worker/`** — a Cloudflare Worker HTTP API (TypeScript, Wrangler). A small,
-  public, unauthenticated backend the extension calls.
+  public, unauthenticated backend both clients call.
 
-Spell-check runs entirely in the browser. Only dictionary lookups and grammar
-analysis reach the Worker.
+Spell-check runs entirely in the browser. Only dictionary lookups, grammar
+analysis, and UI-label translation reach the Worker.
 
 ```
 ┌──────────────────────── extension/ (Chrome MV3) ──────────────────────────┐
@@ -29,9 +32,16 @@ analysis reach the Worker.
           │  GET /lookup?q=…            POST /analyze
           ▼
 ┌──────────────────────── worker/ (Cloudflare Worker) ──────────────────────┐
-│  index.ts  fetch: /lookup, /analyze   scheduled: daily model refresh      │
+│  index.ts  fetch: /lookup, /analyze, /translate                           │
+│            scheduled: daily model refresh                                 │
 │    lookup/   → KV → D1 → Pealim        analyze/ → provider + rules        │
-│    storage/  → D1                       dynamic Workers-AI model list     │
+│    storage/  → D1                       translate/ → Workers AI + KV      │
+└───────────────────────────────────────────────────────────────────────────┘
+          ▲  POST /translate            GET /lookup?q=…
+          │
+┌──────────────────────── macos/ (menu-bar app) ────────────────────────────┐
+│  ModifierWatcher (⌥ held) → AXReader (element under pointer)              │
+│    → PanelController → WorkerClient + LookupCache → TranslationPanel      │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -214,16 +224,23 @@ first read), identically to entries fetched live.
 part a Chrome extension cannot reach (Chrome's own menus, toolbar, dialogs).
 
 - **`DikDukCore`** (unit-tested): `HebrewText` (same term rules as
-  `extension/src/shared/hebrew.ts`), `WorkerClient` (`GET /lookup`,
-  `POST /translate`, 8 s timeout, errors mapped from the worker's `code`), and
-  `LookupCache` (5,000-entry LRU persisted to `~/Library/Caches/DikDuk/cache.json`).
+  `extension/src/shared/hebrew.ts`; truncates labels by UTF-16 length, the unit the
+  Worker counts), `WorkerClient` (`GET /lookup`, `POST /translate`, 8 s total
+  deadline, errors mapped from the Worker's `code`), `LookupCache` (5,000-entry LRU
+  persisted to `~/Library/Caches/DikDuk/cache.json`, written only when changed),
+  `ClickGate` (which mouse events the pin tap swallows) and `PanelPlacement`
+  (keeps the panel on screen and off the pointer).
 - **`DikDukApp`**: `ModifierWatcher` polls the modifier state and pointer every
-  50 ms; `AXReader` reads the element under the pointer via the Accessibility API
-  (title → description → value → help, up to 3 parents, never secure fields) and
-  sets `AXManualAccessibility` so Chromium exposes its web content;
-  `PanelController` debounces 120 ms, then fetches the phrase translation and up to
-  6 term lookups in parallel into a floating, click-through `NSPanel`;
-  `ClickInterceptor` (a session event tap) swallows the ⌥+click that pins it.
+  50 ms (and re-reads a still pointer every 500 ms); `AXReader` reads the element
+  under the pointer via the Accessibility API (title → description → value → help,
+  up to 3 parents, never secure fields) and sets `AXManualAccessibility` so
+  Chromium exposes its web content; `PanelController` debounces 120 ms, then
+  fetches the phrase translation and up to 6 term lookups in parallel into a
+  floating, click-through `NSPanel`; `ClickInterceptor` runs a session event tap on
+  its own thread, armed only while the unpinned panel shows, and swallows the whole
+  ⌥+click (down, drags, up) that pins it — so a busy main thread never delays
+  clicks elsewhere. A click outside a pinned panel (listen-only monitor) or Esc
+  closes it.
 
 ---
 
