@@ -11,6 +11,23 @@ the extension can call it from any page.
 
 ## Endpoints
 
+### Authentication (AI endpoints)
+
+`/lookup` is open. `/translate` and `/analyze` spend AI, which the caller pays for:
+
+| Headers | Who pays |
+|---|---|
+| `Authorization: Bearer <Google AI Studio key>` + `X-DikDuk-Provider: gemini` | the caller's Gemini account |
+| `Authorization: Bearer <Cloudflare API token>` + `X-DikDuk-Provider: workers-ai` + `X-DikDuk-Account: <account id>` | the caller's Cloudflare account |
+| `Authorization: Bearer <OWNER_TOKEN>` (no provider, or `X-DikDuk-Provider: owner`) | the Worker owner (metered on the monthly budget) |
+| none | nobody: cached translations only, otherwise `200 {"code":"NEEDS_KEY"}` |
+
+Secrets travel only in `Authorization`, never in a custom header. The provider name is
+case-insensitive; without it, `Authorization` is treated as the owner token.
+
+A rejected key returns `401 {"code":"BAD_KEY"}`; malformed headers `400 {"code":"BAD_REQUEST"}`. Keys are
+used for that one request and never stored or logged. Credential headers are ignored on `/lookup`.
+
 ### `GET /lookup?q=<hebrew word>`
 
 Looks up a Hebrew word and returns its dictionary entry: `lemma`, `translation`, `root`, `isVerb`,
@@ -136,6 +153,9 @@ Configured in `wrangler.toml`:
 | `PEALIM_CACHE`  | KV   | Lookup response cache (30-day TTL); `/translate` cache (no TTL) |
 | `DB`            | D1   | `pealim` database (persisted lookups)    |
 | `AI`            | AI   | Workers AI (`workers-ai` grammar provider, `/translate`)|
+
+Secret `OWNER_TOKEN` (`wrangler secret put OWNER_TOKEN`) is the owner's access token for the AI endpoints;
+without it owner access is disabled.
 
 Optional environment variables / secrets for grammar providers: `DICTABERT_ANALYZER_URL`,
 `DICTABERT_ANALYZER_TOKEN`, `GEMINI_API_KEY`, `GEMINI_MODEL`.

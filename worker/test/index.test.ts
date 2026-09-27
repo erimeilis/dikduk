@@ -65,15 +65,43 @@ describe('worker.fetch', () => {
     vi.unstubAllGlobals();
   });
 
-  it('translates through POST /translate', async () => {
+  it('translates through POST /translate with the owner token', async () => {
     const ai = { run: vi.fn(async () => ({ response: 'Settings' })) };
     const res = await worker.fetch(new Request('https://w/translate', {
       method: 'POST',
+      headers: { authorization: 'Bearer owner-secret' },
       body: JSON.stringify({ text: 'הגדרות' }),
-    }), { ...env, AI: ai });
+    }), { ...env, AI: ai, OWNER_TOKEN: 'owner-secret' });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ translation: 'Settings' });
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+
+  it('keyless POST /translate never touches the AI binding', async () => {
+    const ai = { run: vi.fn(async () => ({ response: 'Settings' })) };
+    const res = await worker.fetch(new Request('https://w/translate', {
+      method: 'POST', body: JSON.stringify({ text: 'הגדרות' }),
+    }), { ...env, AI: ai, OWNER_TOKEN: 'owner-secret' });
+    expect(await res.json()).toMatchObject({ code: 'NEEDS_KEY' });
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it('allows the credential headers in CORS and 400s malformed credentials', async () => {
+    const pre = await worker.fetch(new Request('https://w/translate', { method: 'OPTIONS' }), env);
+    const allowed = pre.headers.get('Access-Control-Allow-Headers') ?? '';
+    for (const h of ['Authorization', 'X-DikDuk-Provider', 'X-DikDuk-Account']) expect(allowed).toContain(h);
+    expect(allowed).not.toContain('X-DikDuk-Key'); // secrets travel only in Authorization
+    const bad = await worker.fetch(new Request('https://w/translate', {
+      method: 'POST', headers: { authorization: 'Bearer k', 'x-dikduk-provider': 'openai' }, body: '{"text":"הגדרות"}',
+    }), env);
+    expect(bad.status).toBe(400);
+  });
+
+  it('ignores credential headers on /lookup (a bad key never blocks the dictionary)', async () => {
+    const res = await worker.fetch(new Request('https://w/lookup', {
+      headers: { authorization: 'Bearer wrong' },
+    }), { ...env, OWNER_TOKEN: 'owner-secret' });
+    expect(res.status).toBe(400); // missing q — not 401 BAD_KEY
   });
 
   it('405s a GET on /translate', async () => {
@@ -95,7 +123,12 @@ describe('worker.scheduled', () => {
   it('refreshes the grammar model catalogue into KV', async () => {
     const PRICING = '| @cf/good/a | $0.03 per M input tokens  $0.04 per M output tokens | n |';
     vi.stubGlobal('fetch', (async () => new Response(PRICING, { status: 200 })) as any);
-    const ai = { run: vi.fn(async () => ({ choices: [{ message: { content: '{"issues":[]}' } }] })) };
+    // The refresh keeps only models that find the probe's agreement error (הלך, 6..9).
+    const found = JSON.stringify({ issues: [{ id: 'subject_verb_agreement', severity: 'error', message: 'Verb must be feminine', start: 6, end: 9 }] });
+    const ai = { run: vi.fn(async (_id: string, input: any) => ({ choices: [{ message: {
+      // the control sentence (a correct one) must come back clean
+      content: input.messages[1].content.includes('אני הולך לבית ספר') ? '{"issues":[]}' : found,
+    } }] })) };
     const kv = fakeKv();
 
     await (worker as any).scheduled({} as any, { ...env, AI: ai, PEALIM_CACHE: kv }, {} as any);

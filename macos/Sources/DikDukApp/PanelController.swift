@@ -140,6 +140,8 @@ import DikDukCore
     static func phraseStatus(_ error: Error) -> String {
         switch error as? WorkerError {
         case .budget: "translation paused (monthly limit)"
+        case .needsKey: "add your AI key (menu › AI key…)"
+        case .badKey: "AI key rejected — check it in AI key…"
         case .offline: "offline"
         default: "translation unavailable"
         }

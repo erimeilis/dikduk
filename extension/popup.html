@@ -1,7 +1,64 @@
 <!doctype html>
 <html><head><meta charset="utf-8" />
-<style>body{font:14px -apple-system,Arial,sans-serif;padding:12px;width:200px}label{display:flex;gap:8px;align-items:center}</style>
+<meta name="color-scheme" content="light dark" />
+<style>
+  /* Same visual language as the in-page popup (src/lookup/popup.css.ts):
+     system font, 8px radius, hairline borders, chip buttons, #2563eb accent —
+     with a dark variant that follows the system setting. */
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #666; --border: #d0d0d0;
+    --field: #ffffff; --chip: #f7f7f7; --chip-hover: #ececec;
+    --accent: #2563eb; --accent-fg: #ffffff; --ok: #137333; --err: #b00020;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #202124; --fg: #e8eaed; --muted: #9aa0a6; --border: #3c4043;
+      --field: #2a2b2e; --chip: #303134; --chip-hover: #3c4043;
+      --accent: #8ab4f8; --accent-fg: #202124; --ok: #81c995; --err: #f28b82;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; width: 280px; padding: 12px;
+    font: 14px/1.4 -apple-system, "Segoe UI", Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+  }
+  .toggle { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .toggle input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+  section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: grid; gap: 8px; }
+  h2 { margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  select, input[type="password"], input[type="text"] {
+    width: 100%; padding: 6px 8px; font: inherit; color: var(--fg);
+    background: var(--field); border: 1px solid var(--border); border-radius: 6px; outline: none;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  [hidden] { display: none !important; }
+  .row { display: flex; gap: 6px; justify-content: flex-end; }
+  button {
+    all: unset; cursor: pointer; padding: 5px 12px; font-size: 13px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--chip); color: var(--fg);
+  }
+  button:hover { background: var(--chip-hover); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  #result { min-height: 1.2em; font-size: 12px; color: var(--muted); }
+  #result.ok { color: var(--ok); }
+  #result.err { color: var(--err); }
+</style>
 </head><body>
-<label><input type="checkbox" id="toggle" /> Hebrew spell-check</label>
+<label class="toggle"><input type="checkbox" id="toggle" /> Hebrew spell-check</label>
+<section id="ai">
+  <h2>AI key</h2>
+  <select id="provider">
+    <option value="gemini">Google Gemini</option>
+    <option value="workers-ai">Cloudflare Workers AI</option>
+    <option value="owner">DikDuk owner token</option>
+  </select>
+  <input id="key" type="password" placeholder="Key" autocomplete="off" />
+  <input id="account" type="text" placeholder="Cloudflare account ID" autocomplete="off" />
+  <div class="row"><button id="test">Test</button><button id="remove">Remove</button><button id="save" class="primary">Save</button></div>
+  <div id="result"></div>
+</section>
 <script type="module" src="src/action-popup.ts"></script>
 </body></html>

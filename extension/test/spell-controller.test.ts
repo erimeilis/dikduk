@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { computeCandidates, SpellController } from '../src/spellcheck/controller';
+import { computeCandidates, grammarStatusMessage, SpellController } from '../src/spellcheck/controller';
 import { SpellTransport } from '../src/spellcheck/transport';
 
 const storage = {
@@ -469,5 +469,13 @@ describe('SpellController grammar-status surfacing', () => {
     window.removeEventListener('dikduk-grammar-status', listener);
 
     expect(events).toEqual([{ message: 'Grammar paused — monthly limit reached' }]);
+  });
+});
+
+describe('grammarStatusMessage', () => {
+  it('maps key states to actionable copy', () => {
+    expect(grammarStatusMessage('x', 'NEEDS_KEY')).toBe('Grammar needs your AI key — click the DikDuk toolbar icon');
+    expect(grammarStatusMessage('x', 'BAD_KEY')).toBe('AI key rejected — check it in the DikDuk toolbar popup');
+    expect(grammarStatusMessage('Grammar paused', 'BUDGET')).toBe('Grammar paused — monthly limit reached');
   });
 });

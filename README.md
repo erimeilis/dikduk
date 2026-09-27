@@ -42,11 +42,110 @@ they call for dictionary lookups, grammar analysis, and UI-label translation.
   `contenteditable` fields. Click a flag for suggestions, add-to-dictionary, or ignore. Runs locally
   from a bundled Hspell dictionary — no network request.
 - **Grammar hints** — Hebrew text is analyzed by the Worker's `/analyze` endpoint and grammar issues
-  are underlined; click one for an explanation and suggested fix.
+  are underlined; click one for an explanation and suggested fix. Uses your own AI key (Gemini or Cloudflare
+  Workers AI); dictionary lookup and spell-check need none.
 - **Hover translation on macOS** — the companion app reads the Hebrew text under the pointer in any
   app (including Chrome's own menus, toolbar, and settings, which an extension cannot reach) while
   you hold ⌥, and shows its English meaning plus a Pealim breakdown of each term. ⌥+click pins the
-  panel; click a term to open it on Pealim.
+  panel; click a term to open it on Pealim. New translations use your own AI key; cached ones are free.
+
+---
+
+## Install and use
+
+### What works with and without an AI key
+
+| Feature | Needs an AI key? |
+| --- | --- |
+| Dictionary lookup (double-click, right-click, OCR) | No |
+| Spell-check | No — runs entirely in your browser |
+| Grammar hints (extension) | **Yes** |
+| Hover translation (macOS app) — labels someone already translated | No — served from the shared cache |
+| Hover translation (macOS app) — new labels | **Yes** |
+| Term breakdown in the macOS panel (meaning, root, related words) | No |
+
+The AI runs on **your own** account at Google or Cloudflare, so you pay for your own usage (both have
+a free allowance). DikDuk never stores your key: it is sent with each AI request and used for that
+one request only.
+
+### Chrome extension
+
+The extension is not in the Chrome Web Store yet; you load it from a build.
+
+1. Build it once (needs Node.js): `cd extension && npm install && npm run build`.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and choose the `extension/dist` folder.
+4. Click the puzzle-piece icon in the toolbar and pin **DikDuk**.
+
+What Chrome asks you to allow, and why:
+
+- **Read and change all your data on all websites** — to find Hebrew words on the pages you read
+  and to underline spelling and grammar in the fields you type in. Only two things leave your
+  computer: words you look up, and — once you have saved an AI key — the text of Hebrew fields you
+  type in, for grammar checks. Spell-check never sends anything.
+- **Storage** — your personal dictionary, settings, and AI key, kept on this computer.
+- **Context menus** — the right-click "Look up" entry.
+- **Offscreen documents** — runs OCR and the spell-checker in the background.
+
+To add your AI key: click the DikDuk icon › **AI key** › choose the provider, paste the key (and,
+for Cloudflare, your account ID) › **Test** › **Save**.
+
+### macOS companion
+
+Requires macOS 15 or later.
+
+1. Download `DikDuk-macos-<version>.zip` from
+   [Releases](https://github.com/erimeilis/dikduk/releases) — **version 0.2.0 or later** (0.1.0
+   predates AI keys). Or build it: `cd macos && scripts/bundle.sh`.
+2. Unzip it and move **DikDuk.app** to Applications.
+3. **Right-click › Open › Open** the first time. The app is not signed with an Apple Developer ID, so
+   a plain double-click is blocked by Gatekeeper.
+4. Allow **Accessibility** when asked (System Settings › Privacy & Security › Accessibility › turn on
+   DikDuk). It lets DikDuk read the text of the menu or button under your pointer. Password fields
+   are never read.
+5. Menu-bar icon › **AI key…** › choose the provider, paste the key › **Test** › **Save**. The key is
+   stored in your Keychain. If macOS asks whether DikDuk may use it, choose **Always Allow**.
+6. Hold **⌥** over Hebrew text in any app. ⌥+click pins the panel; Esc closes it.
+
+For Chrome's own menus to be in Hebrew: System Settings › General › Language & Region ›
+Applications › **+** › Google Chrome › Hebrew, then restart Chrome.
+
+### Which AI key to choose
+
+| | Cloudflare Workers AI (recommended) | Google Gemini |
+| --- | --- | --- |
+| Tested with DikDuk | Yes — translations and grammar verified live | Not yet tested live |
+| Free allowance | 10,000 Neurons per day — roughly 2,400 new UI-label translations or about 1,000 grammar checks | Free tier with per-model daily request limits (see Google AI Studio) |
+| Setup | API token **and** account ID | One key |
+| Beyond the free allowance | Workers Paid plan ($5/month) plus usage | Pay-as-you-go billing in Google AI Studio |
+
+Pick **Cloudflare Workers AI** if you want what is known to work today; pick **Gemini** if you want
+the quickest setup and are fine being the first to try it.
+
+**Get a Cloudflare Workers AI key**
+
+1. Sign up or log in at [dash.cloudflare.com](https://dash.cloudflare.com).
+2. Open **Workers AI** in the sidebar and select **Use REST API**.
+3. Select **Create a Workers AI API Token** › **Create API Token** › **Copy API Token**.
+   (A hand-made token needs the permissions *Workers AI – Read* and *Workers AI – Edit*.)
+4. On the same page, copy the **Account ID**.
+5. In DikDuk choose **Cloudflare Workers AI** and paste both.
+
+**Get a Google Gemini key**
+
+1. Sign in at [aistudio.google.com](https://aistudio.google.com) with a Google account.
+2. Open **Get API key** and select **Create API key**, then copy it.
+3. In DikDuk choose **Google Gemini** and paste the key.
+
+### If something says…
+
+| Message | Meaning |
+| --- | --- |
+| "add your AI key" / "Grammar needs your AI key" | No key saved — see above. |
+| "AI key rejected" | The provider refused the key: check you pasted all of it (and, for Cloudflare, the right account ID). |
+| "offline" | DikDuk can't reach its server — check your connection. |
+| "No AI key — translations from cache only" (macOS menu) | Only labels someone translated before will show a translation. |
+| "Keychain error" (macOS menu) | macOS denied access to the saved key — re-save it in **AI key…** and choose **Always Allow**. |
 
 ---
 
@@ -69,14 +168,14 @@ they call for dictionary lookups, grammar analysis, and UI-label translation.
 - Dictionary lookups, grammar analysis, and UI-label translation are the only calls that reach the
   Worker.
 - The Worker scrapes and caches [Pealim](https://www.pealim.com) (KV + D1) for lookups, delegates
-  grammar analysis to a configured provider (DictaBERT, Workers AI, or Gemini), and translates UI
-  labels with Workers AI (cached in KV).
+  grammar analysis and UI-label translation to AI on the caller's own key (Workers AI or Gemini;
+  translations are cached in KV).
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how each part is built and works internally.
 
 ---
 
-## Quick start
+## Build from source (developers)
 
 Requires Node.js and npm. The Worker additionally uses [Wrangler](https://developers.cloudflare.com/workers/wrangler/)
 (installed as a dev dependency).

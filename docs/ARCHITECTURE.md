@@ -197,6 +197,17 @@ labels as prose — הגדרות → "settled"). Results are cached in KV foreve
 includes the model id, so changing the model starts a fresh cache. Model calls
 share the monthly budget with `/analyze` (a spent budget returns 200 `BUDGET`).
 
+### AI credentials
+
+`src/auth/credentials.ts` resolves who pays for each AI request from its headers
+(owner token, a user's Gemini key, a user's Cloudflare token + account id, or
+nobody); `/lookup` ignores credentials. `src/auth/ai-runner.ts` gives
+`/translate` and the Workers AI grammar provider one `run(model, input)`
+interface: the owner's `AI` binding, or Cloudflare's REST API with the user's
+token. Gemini calls go through `src/auth/gemini.ts` with the key in a header.
+Only owner calls are metered on the monthly budget; keyless callers get cached
+translations or `NEEDS_KEY`. Keys are never stored or logged.
+
 ### Pealim warm-cache scraper
 
 `scripts/scrape-pealim.ts` (`scripts/scrape-lib.ts`) is an operator tool that
@@ -255,5 +266,7 @@ part a Chrome extension cannot reach (Chrome's own menus, toolbar, dialogs).
 - The **macOS companion** sends the Hebrew label under the pointer (at most 200
   characters) to `/translate` and its terms to `/lookup`, only while the trigger
   modifier is held. Password fields are never read.
+- **AI keys** travel in request headers over HTTPS, are used for that single
+  call, and are never stored or logged by the Worker.
 - Provider API keys (Gemini) live server-side in the Worker, never in the
   extension.

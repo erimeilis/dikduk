@@ -13,12 +13,33 @@ export function grammarMessages(text: string): { role: 'system' | 'user'; conten
 
 export function grammarPrompt(text: string): string {
   return [
-    'Analyze this Hebrew text and return JSON shaped as:',
-    '{"issues":[{"id":"short_snake_case","severity":"info|warning|error","message":"English explanation","start":0,"end":0,"replacement":"best Hebrew replacement","replacements":[{"value":"optional Hebrew replacement","label":"optional label"}],"evidence":"short evidence","hint":"short guidance","suggestions":["optional suggestion"]}]}',
+    // Fields are described, not shown as sample values: weak models copy sample
+    // values verbatim (an issue id of "short_snake_case" reached users).
+    'Analyze this Hebrew text and return a JSON object {"issues": [...]}, where each issue has:',
+    '- id: snake_case name of the error type, e.g. gender_agreement, subject_verb_agreement, wrong_preposition',
+    '- severity: one of info, warning, error',
+    '- message: one English sentence explaining this specific mistake',
+    '- start, end: offsets of the mistaken word(s) in the input',
+    '- replacement: the corrected Hebrew text for that span',
+    '- optional: replacements (array of {value, label}), evidence, hint, suggestions (array of strings)',
+    'Return {"issues": []} when the text has no grammar mistakes.',
     'Offsets are JavaScript string offsets into the exact input. If unsure about an offset, omit the issue.',
     'Input:',
     text,
   ].join('\n');
+}
+
+// Values from the old prompt template: an issue carrying them was copied from
+// the instructions, not found in the text.
+const TEMPLATE_ECHOES = new Set(['short_snake_case', 'English explanation']);
+
+// The refresh probe: does this model's reply flag the known agreement error in
+// the probe sentence (a feminine subject with a masculine verb, הלך)?
+export function findsProbeError(probe: string, raw: unknown): boolean {
+  const start = probe.indexOf('הלך');
+  if (start < 0) return false;
+  const end = start + 'הלך'.length;
+  return parseLlmIssues(probe, raw).some((issue) => issue.start < end && start < issue.end);
 }
 
 export function parseLlmIssues(text: string, raw: unknown): GrammarIssue[] {
@@ -33,6 +54,7 @@ export function parseLlmIssues(text: string, raw: unknown): GrammarIssue[] {
 function normalizeLlmIssue(text: string, issue: unknown): GrammarIssue | null {
   if (!issue || typeof issue !== 'object') return null;
   const obj = issue as Record<string, unknown>;
+  if (TEMPLATE_ECHOES.has(readString(obj.id)) || TEMPLATE_ECHOES.has(readString(obj.message))) return null;
   const start = typeof obj.start === 'number' ? obj.start : -1;
   const end = typeof obj.end === 'number' ? obj.end : -1;
   if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || end > text.length) {

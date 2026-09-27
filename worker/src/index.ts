@@ -11,8 +11,9 @@ import {
   translateHebrew,
   isTranslateError,
   statusFor as translateStatusFor,
-  type TranslateAi,
 } from './translate';
+import { parseCredentials, isCredentialsError } from './auth/credentials';
+import { bindingRunner } from './auth/ai-runner';
 
 // PEALIM_CACHE is typed as the narrow KVLike our code uses, not the
 // workers-types `KVNamespace` global. The runtime binding is a full
@@ -26,13 +27,15 @@ export interface Env {
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
   AI?: Ai;
+  // Owner access token (wrangler secret). Unset → owner access disabled.
+  OWNER_TOKEN?: string;
 }
 
 // Public unauthenticated API — wildcard origin is intentional for extension use.
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-DikDuk-Provider, X-DikDuk-Account',
 };
 
 // Build JSON responses without relying on the static Response.json() helper,
@@ -50,6 +53,13 @@ async function fetch(request: Request, env: Env): Promise<Response> {
   }
 
   const url = new URL(request.url);
+  // Who pays for AI (spec §3.1), resolved only for the AI endpoints so a bad key
+  // never blocks /lookup. Keys are used for this request only, never stored.
+  const aiEndpoint = url.pathname === '/analyze' || url.pathname === '/translate';
+  const credentials = aiEndpoint ? parseCredentials(request.headers, env.OWNER_TOKEN) : { kind: 'none' as const };
+  if (isCredentialsError(credentials)) {
+    return json(credentials, credentials.code === 'BAD_KEY' ? 401 : 400);
+  }
   if (url.pathname === '/analyze') {
     if (request.method !== 'POST') {
       return json({ error: 'Method not allowed', code: 'BAD_REQUEST' }, 405);
@@ -72,6 +82,7 @@ async function fetch(request: Request, env: Env): Promise<Response> {
       }),
       kv: env.PEALIM_CACHE,
       month,
+      credentials,
     });
     const status = isAnalyzeError(result) ? analyzeStatusFor(result) : 200;
     return json(result, status);
@@ -90,7 +101,8 @@ async function fetch(request: Request, env: Env): Promise<Response> {
     }
 
     const result = await translateHebrew(body, {
-      ai: env.AI as unknown as TranslateAi | undefined,
+      credentials,
+      ai: env.AI ? bindingRunner(env.AI) : undefined,
       kv: env.PEALIM_CACHE ?? null,
       month: new Date().toISOString().slice(0, 7),
     });
