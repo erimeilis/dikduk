@@ -56,7 +56,7 @@ export interface AnalyzeResult {
   raw?: unknown;
 }
 
-export type AnalyzeErrorCode = 'BAD_REQUEST' | 'NO_PROVIDER' | 'UPSTREAM' | 'PARSE' | 'NO_MODELS' | 'BUDGET';
+export type AnalyzeErrorCode = 'BAD_REQUEST' | 'NO_PROVIDER' | 'UPSTREAM' | 'PARSE' | 'NO_MODELS' | 'BUDGET' | 'NEEDS_KEY' | 'BAD_KEY';
 
 export interface AnalyzeError {
   error: string;
@@ -79,6 +79,8 @@ export interface AnalyzeDeps {
   lookupImpl?: MorphologyLookup;
   kv?: KVLike;
   month?: string;
+  // Who pays; default owner (index.ts always passes it explicitly).
+  credentials?: import('../auth/credentials').Credentials;
 }
 
 export interface Analyzer {

@@ -5,7 +5,9 @@ export interface CatalogueModel {
 }
 
 const PRICING_URL = 'https://developers.cloudflare.com/workers-ai/platform/pricing/index.md';
-const ROW = /\|\s*(@cf\/[^\s|]+)\s*\|\s*\$([\d.]+) per M input tokens\s+\$([\d.]+) per M output tokens/g;
+// Input and output prices share one cell, separated by whitespace or (page
+// format since 2026-09) an HTML `<br>`.
+const ROW = /\|\s*(@cf\/[^\s|]+)\s*\|\s*\$([\d.]+) per M input tokens(?:\s|<br\s*\/?>)+\$([\d.]+) per M output tokens/g;
 
 export function parsePricingCatalogue(markdown: string): CatalogueModel[] {
   const out: CatalogueModel[] = [];

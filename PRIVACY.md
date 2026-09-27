@@ -1,6 +1,6 @@
 # DikDuk — Privacy Policy
 
-_Last updated: 2026-09-26_
+_Last updated: 2026-09-26 (AI keys)_
 
 DikDuk is a browser extension for reading and writing Hebrew (dictionary lookup,
 spell-check, and grammar hints) and an optional macOS companion app that
@@ -29,6 +29,11 @@ The extension acts only on Hebrew text; other content is ignored.
 
 ## What is sent off your device, and where
 
+- **Your AI key.** Grammar checks and new UI-label translations use an AI key you
+  provide (Google Gemini or Cloudflare Workers AI). The key is sent with each
+  such request over HTTPS, used for that single call, and **never stored or
+  logged** by the DikDuk backend. The AI provider bills your own account.
+  Without a key, only dictionary lookups and already-cached translations work.
 - **Dictionary lookups and grammar checks** send the specific word or text being
   looked up/checked to the DikDuk backend at
   `https://pealim-lookup.admice.workers.dev`. That service:
@@ -55,6 +60,9 @@ The extension acts only on Hebrew text; other content is ignored.
   setting** are stored locally in the browser (`chrome.storage.local`).
 - **The macOS companion's settings** (enabled, trigger key) and its **local
   cache of results** (`~/Library/Caches/DikDuk/cache.json`) stay on your Mac.
+- **Where your AI key is kept:** the macOS app stores it in your Keychain; the
+  extension in `chrome.storage.local` on this computer (not synced, not
+  encrypted at rest).
 
 ## What DikDuk does not do
 
@@ -66,7 +74,8 @@ The extension acts only on Hebrew text; other content is ignored.
 
 - **Pealim** (https://www.pealim.com) — source of dictionary data.
 - **Cloudflare** — hosts the backend and provides AI grammar analysis and
-  UI-label translation.
+  UI-label translation (on your own account if you use a Workers AI key).
+- **Google** — Gemini, if you choose it as your AI provider.
 
 ## Contact
 

@@ -26,6 +26,16 @@ runs locally.
 
 ---
 
+> **New here?** The step-by-step setup (install, permissions, which AI key to pick and where to
+> get it) is in the main [README › Install and use](../README.md#install-and-use).
+
+## AI key
+
+Grammar hints need your own AI key — Google Gemini (from Google AI Studio) or Cloudflare Workers AI
+(an API token with Workers AI permission plus your account ID). Set it in the toolbar popup:
+pick the provider, paste the key, **Test**, **Save**. It is stored in `chrome.storage.local` on this
+computer only (not synced). Dictionary lookup and spell-check need no key.
+
 ## Prerequisites
 
 - Node.js and npm

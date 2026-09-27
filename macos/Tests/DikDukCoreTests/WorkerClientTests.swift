@@ -95,6 +95,40 @@ import Testing
         await #expect(throws: WorkerError.offline) { try await quick.translate("הגדרות") }
     }
 
+    func client(with creds: AICredentials?) -> WorkerClient {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        return WorkerClient(baseURL: URL(string: "https://w.test")!, session: URLSession(configuration: config), credentials: { creds })
+    }
+
+    @Test func sendsCredentialHeaders() async throws {
+        StubURLProtocol.handler = { _ in (200, Self.json(["translation": "Settings"])) }
+        _ = try await client(with: .gemini(key: "g")).translate("הגדרות")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer g")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-DikDuk-Provider") == "gemini")
+    }
+
+    @Test func lookupNeverCarriesTheKey() async throws {
+        let body = try fixture("lookup-hagdarot")
+        StubURLProtocol.handler = { _ in (200, body) }
+        _ = try await client(with: .gemini(key: "g")).lookup("הגדרות")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == nil)
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-DikDuk-Provider") == nil)
+    }
+
+    @Test func sendsNoCredentialHeadersWithoutAKey() async throws {
+        StubURLProtocol.handler = { _ in (200, Self.json(["translation": "Settings"])) }
+        _ = try await client(with: nil).translate("הגדרות")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    @Test func needsKeyAndBadKeyAreMapped() async {
+        StubURLProtocol.handler = { _ in (200, Self.json(["error": "AI key required", "code": "NEEDS_KEY"])) }
+        await #expect(throws: WorkerError.needsKey) { try await client(with: nil).translate("הגדרות") }
+        StubURLProtocol.handler = { _ in (401, Self.json(["error": "AI key rejected", "code": "BAD_KEY"])) }
+        await #expect(throws: WorkerError.badKey) { try await client(with: .gemini(key: "x")).translate("הגדרות") }
+    }
+
     @Test func requestsTimeOutAfterEightSeconds() async throws {
         StubURLProtocol.handler = { _ in (200, Self.json(["translation": "Settings"])) }
         _ = try await client.translate("הגדרות")

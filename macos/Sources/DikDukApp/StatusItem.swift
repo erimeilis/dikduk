@@ -5,7 +5,22 @@ import AppKit
     private let settings: Settings
     private var trusted = false
     private var warning: String?
+    enum KeyState: Equatable {
+        case present
+        case missing
+        case keychainError(String)
+    }
+
+    private var keyState = KeyState.present
     var onChange: (() -> Void)?
+    var onOpenAIKey: (() -> Void)?
+
+    /// Shows when AI translation is off: no key saved, or the Keychain can't be read.
+    func setKeyState(_ state: KeyState) {
+        guard state != keyState else { return }
+        keyState = state
+        rebuild()
+    }
 
     /// Shows a problem (e.g. the cache file can't be saved) at the top of the menu.
     func setWarning(_ message: String?) {
@@ -35,6 +50,12 @@ import AppKit
             menu.addItem(line)
             menu.addItem(.separator())
         }
+        if let keyLine = keyStateLine {
+            let line = NSMenuItem(title: keyLine, action: nil, keyEquivalent: "")
+            line.isEnabled = false
+            menu.addItem(line)
+            menu.addItem(.separator())
+        }
         if !trusted {
             let grant = NSMenuItem(title: "Open Accessibility settings", action: #selector(openAccessibility), keyEquivalent: "")
             grant.target = self
@@ -54,11 +75,25 @@ import AppKit
             menu.addItem(entry)
         }
         menu.addItem(.separator())
+        let aiKey = NSMenuItem(title: "AI key…", action: #selector(openAIKey), keyEquivalent: "")
+        aiKey.target = self
+        menu.addItem(aiKey)
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit DikDuk", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         item.menu = menu
     }
 
     @objc private func openAccessibility() { Permissions.openAccessibilitySettings() }
+
+    @objc private func openAIKey() { onOpenAIKey?() }
+
+    private var keyStateLine: String? {
+        switch keyState {
+        case .present: nil
+        case .missing: "No AI key — translations from cache only"
+        case .keychainError(let message): "⚠︎ Keychain error: \(message)"
+        }
+    }
 
     @objc private func toggleEnabled() {
         settings.enabled.toggle()

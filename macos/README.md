@@ -3,6 +3,9 @@
 Menu-bar companion: hold **⌥** (or ⌃⌥) and point at Hebrew text in any app — menus,
 buttons, settings — to see its English meaning and a Pealim breakdown of each term.
 
+> **New here?** The step-by-step setup (install, permissions, which AI key to pick and where to
+> get it) is in the main [README › Install and use](../README.md#install-and-use).
+
 ## Download
 
 Prebuilt app: `DikDuk-macos-<version>.zip` on the repository's
@@ -37,6 +40,9 @@ Security › Accessibility.
 - ⌥+click pins the panel; click a term to open it on Pealim. Esc or a click
   elsewhere closes it.
 - Menu-bar icon: enable/disable, pick the modifier, quit.
+- **AI key:** menu › AI key… — pick Google Gemini, Cloudflare Workers AI or the owner token, paste
+  the key, **Test**, **Save**. Keys are stored in your Keychain. Without a key only cached translations
+  appear; dictionary rows always work.
 
 Test against a local worker before `/translate` is deployed:
 

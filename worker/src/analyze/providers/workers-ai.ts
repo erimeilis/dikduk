@@ -1,5 +1,6 @@
 import type { Analyzer, AnalyzeError, AnalyzeResult } from '../types';
 import type { CatalogueModel } from '../catalogue';
+import { BadKeyError, type AiRunner } from '../../auth/ai-runner';
 import { grammarMessages, parseLlmIssues } from '../llm-parsing';
 
 // Tries each model in `models` (price-ordered, cheapest first) in turn and
@@ -10,7 +11,7 @@ export class WorkersAiAnalyzer implements Analyzer {
   provider = 'workers-ai' as const;
 
   constructor(
-    private readonly ai: Ai,
+    private readonly ai: AiRunner,
     private readonly models: CatalogueModel[],
   ) {}
 
@@ -18,14 +19,14 @@ export class WorkersAiAnalyzer implements Analyzer {
     let lastError = 'no model available';
     for (const model of this.models) {
       try {
-        const raw = await this.ai.run(model.id as keyof AiModels, {
+        const raw = await this.ai.run(model.id, {
           messages: grammarMessages(text),
           response_format: { type: 'json_object' },
           temperature: 0,
           // kimi-k2.6 is a reasoning model — it spends tokens on reasoning before
           // emitting the JSON answer, so 700 left `content` empty. Give it room.
           max_tokens: 3000,
-        } as any);
+        });
         return {
           provider: this.provider,
           model: model.id,
@@ -35,6 +36,7 @@ export class WorkersAiAnalyzer implements Analyzer {
           raw,
         };
       } catch (e) {
+        if (e instanceof BadKeyError) return { error: 'AI key rejected', code: 'BAD_KEY' };
         lastError = (e as Error).message;
       }
     }

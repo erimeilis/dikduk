@@ -4,7 +4,17 @@ import DikDukCore
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     let settings = Settings()
     private let cache = LookupCache(fileURL: LookupCache.defaultFileURL())
-    private lazy var controller = PanelController(client: WorkerClient(baseURL: settings.workerURL), cache: cache)
+    private let credentialStore = CredentialStore(
+        keychain: KeychainStore(service: "dev.dikduk.companion"),
+        defaults: .standard
+    )
+    private lazy var controller = PanelController(
+        client: WorkerClient(baseURL: settings.workerURL, credentials: { [credentialStore] in try? credentialStore.load() }),
+        cache: cache
+    )
+    private lazy var aiKeyWindow = AIKeyWindowController(store: credentialStore, baseURL: settings.workerURL) { [weak self] in
+        self?.refreshKeyState()
+    }
     private let watcher = ModifierWatcher()
     private let clicks = ClickInterceptor()
     private(set) var status: StatusItem!
@@ -17,6 +27,8 @@ import DikDukCore
     func applicationDidFinishLaunching(_ notification: Notification) {
         status = StatusItem(settings: settings)
         status.onChange = { [weak self] in self?.applySettings() }
+        status.onOpenAIKey = { [weak self] in self?.aiKeyWindow.show() }
+        refreshKeyState()
         watcher.onHoldChange = { [weak self] held, point in self?.controller.holdChanged(held, at: point) }
         watcher.onMove = { [weak self] point in self?.controller.pointerMoved(to: point) }
         clicks.onPin = { [weak self] in self?.controller.pin() }
@@ -76,6 +88,15 @@ import DikDukCore
             controller.dismiss()
         }
         log.info("running=\(shouldRun) modifier=\(self.settings.modifier.rawValue, privacy: .public)")
+    }
+
+    private func refreshKeyState() {
+        do {
+            status.setKeyState(try credentialStore.load() == nil ? .missing : .present)
+        } catch {
+            log.error("keychain read failed: \(String(describing: error), privacy: .public)")
+            status.setKeyState(.keychainError(String(describing: error)))
+        }
     }
 
     private func flushCache() {

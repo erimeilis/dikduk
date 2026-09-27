@@ -22,6 +22,8 @@ public enum WorkerError: Error, Equatable, Sendable {
     case noResults
     case budget
     case offline
+    case needsKey
+    case badKey
     case upstream(String)
 }
 
@@ -47,21 +49,25 @@ public struct WorkerClient: Sendable {
     /// Total deadline per request. URLRequest.timeoutInterval alone is an idle
     /// timeout, so a slowly trickling response could outlive it.
     let timeout: TimeInterval
+    /// Read per request, so a key saved in settings applies without a relaunch.
+    let credentials: @Sendable () -> AICredentials?
 
     public init(
         baseURL: URL = WorkerClient.defaultBaseURL,
         session: URLSession = .shared,
-        timeout: TimeInterval = WorkerClient.defaultTimeout
+        timeout: TimeInterval = WorkerClient.defaultTimeout,
+        credentials: @escaping @Sendable () -> AICredentials? = { nil }
     ) {
         self.baseURL = baseURL
         self.session = session
         self.timeout = timeout
+        self.credentials = credentials
     }
 
     public func lookup(_ term: String) async throws -> LookupResult {
         var components = URLComponents(url: baseURL.appending(path: "lookup"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "q", value: term)]
-        return try await send(URLRequest(url: components.url!), as: LookupResult.self)
+        return try await send(URLRequest(url: components.url!), as: LookupResult.self, withKey: false)
     }
 
     public func translate(_ text: String) async throws -> String {
@@ -69,12 +75,16 @@ public struct WorkerClient: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["text": text])
-        return try await send(request, as: TranslateBody.self).translation
+        return try await send(request, as: TranslateBody.self, withKey: true).translation
     }
 
-    private func send<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
+    /// `withKey`: only AI calls carry the key; /lookup never needs one.
+    private func send<T: Decodable>(_ request: URLRequest, as type: T.Type, withKey: Bool) async throws -> T {
         var request = request
         request.timeoutInterval = timeout
+        if withKey {
+            for (name, value) in credentials()?.headers ?? [:] { request.setValue(value, forHTTPHeaderField: name) }
+        }
         let data: Data
         do {
             data = try await fetchWithDeadline(request)
@@ -92,6 +102,8 @@ public struct WorkerClient: Sendable {
             switch body.code {
             case "NO_RESULTS": throw WorkerError.noResults
             case "BUDGET": throw WorkerError.budget
+            case "NEEDS_KEY": throw WorkerError.needsKey
+            case "BAD_KEY": throw WorkerError.badKey
             default: throw WorkerError.upstream(body.error)
             }
         }

@@ -221,8 +221,10 @@ function emitHighlights(
   window.dispatchEvent(new CustomEvent('dikduk-spell-flags', { detail }));
 }
 
-function grammarStatusMessage(error: string, code?: string): string {
+export function grammarStatusMessage(error: string, code?: string): string {
   if (code === 'BUDGET') return 'Grammar paused — monthly limit reached';
+  if (code === 'NEEDS_KEY') return 'Grammar needs your AI key — click the DikDuk toolbar icon';
+  if (code === 'BAD_KEY') return 'AI key rejected — check it in the DikDuk toolbar popup';
   return error;
 }
 

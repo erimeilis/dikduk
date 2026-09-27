@@ -2,15 +2,25 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleIdentifier</key><string>dev.dikduk.companion</string>
-    <key>CFBundleName</key><string>DikDuk</string>
-    <key>CFBundleDisplayName</key><string>DikDuk</string>
-    <key>CFBundleExecutable</key><string>DikDuk</string>
-    <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.1.0</string>
-    <key>CFBundleVersion</key><string>1</string>
-    <key>LSMinimumSystemVersion</key><string>15.0</string>
-    <key>LSUIElement</key><true/>
-    <key>NSHumanReadableCopyright</key><string>AGPL-3.0-or-later</string>
+	<key>CFBundleDisplayName</key>
+	<string>DikDuk</string>
+	<key>CFBundleExecutable</key>
+	<string>DikDuk</string>
+	<key>CFBundleIdentifier</key>
+	<string>dev.dikduk.companion</string>
+	<key>CFBundleName</key>
+	<string>DikDuk</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.2.0</string>
+	<key>CFBundleVersion</key>
+	<string>2</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>AGPL-3.0-or-later</string>
 </dict>
 </plist>

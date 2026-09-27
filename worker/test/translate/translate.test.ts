@@ -5,6 +5,7 @@ import {
   isTranslateError,
   statusFor,
   TRANSLATE_MODEL,
+  GEMINI_TRANSLATE_MODEL,
 } from '../../src/translate';
 import { spendKey } from '../../src/analyze/metering';
 
@@ -136,5 +137,84 @@ describe('translateHebrew', () => {
   it('returns UPSTREAM when no AI binding is configured', async () => {
     const r = await translateHebrew({ text: 'הגדרות' }, { kv: null, month });
     expect(isTranslateError(r) && r.code).toBe('UPSTREAM');
+  });
+});
+
+describe('translateHebrew with credentials', () => {
+  const geminiOk = (text: string) => vi.fn(async () => new Response(JSON.stringify({
+    candidates: [{ content: { parts: [{ text }] } }],
+  }), { status: 200 }));
+
+  it('keyless cache miss returns NEEDS_KEY (200) and calls nothing', async () => {
+    const ai = fakeAi();
+    const r = await translateHebrew({ text: 'הגדרות' }, { credentials: { kind: 'none' }, ai, kv: fakeKv(), month });
+    expect(isTranslateError(r) && r.code).toBe('NEEDS_KEY');
+    expect(isTranslateError(r) && statusFor(r)).toBe(200);
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it('keyless request is served from the Llama cache', async () => {
+    const kv = fakeKv({ [await cacheKey('הגדרות')]: 'Settings' });
+    expect(await translateHebrew({ text: 'הגדרות' }, { credentials: { kind: 'none' }, kv, month }))
+      .toEqual({ translation: 'Settings' });
+  });
+
+  it('keyless request finds a Gemini-cached label', async () => {
+    const kv = fakeKv({ [await cacheKey('הגדרות', GEMINI_TRANSLATE_MODEL)]: 'Settings' });
+    expect(await translateHebrew({ text: 'הגדרות' }, { credentials: { kind: 'none' }, kv, month }))
+      .toEqual({ translation: 'Settings' });
+  });
+
+  it('gemini key translates via Gemini, caches under the Gemini model, spends nothing', async () => {
+    const kv = fakeKv();
+    const fetchImpl = geminiOk('Settings');
+    const r = await translateHebrew({ text: 'הגדרות' }, { credentials: { kind: 'gemini', apiKey: 'g' }, kv, month, fetchImpl: fetchImpl as any });
+    expect(r).toEqual({ translation: 'Settings' });
+    expect(kv.store.get(await cacheKey('הגדרות', GEMINI_TRANSLATE_MODEL))).toBe(JSON.stringify('Settings'));
+    expect(kv.store.has(spendKey(month))).toBe(false);
+  });
+
+  it('bad gemini key is BAD_KEY (401)', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 403 }));
+    const r = await translateHebrew({ text: 'הגדרות' }, { credentials: { kind: 'gemini', apiKey: 'g' }, kv: null, month, fetchImpl: fetchImpl as any });
+    expect(isTranslateError(r) && r.code).toBe('BAD_KEY');
+    expect(isTranslateError(r) && statusFor(r)).toBe(401);
+  });
+
+  it('workers-ai key runs Llama over REST and spends nothing on the owner budget', async () => {
+    const kv = fakeKv();
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ success: true, result: { response: 'Settings' } }), { status: 200 }));
+    const r = await translateHebrew({ text: 'הגדרות' }, {
+      credentials: { kind: 'workers-ai', apiToken: 't', accountId: 'a' }, kv, month, fetchImpl: fetchImpl as any,
+    });
+    expect(r).toEqual({ translation: 'Settings' });
+    expect((fetchImpl.mock.calls[0] as unknown as [string])[0]).toContain(`/accounts/a/ai/run/${TRANSLATE_MODEL.id}`);
+    expect(kv.store.has(spendKey(month))).toBe(false);
+  });
+
+  it('bad workers-ai token is BAD_KEY', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ success: false, errors: [{ code: 10000 }] }), { status: 400 }));
+    const r = await translateHebrew({ text: 'הגדרות' }, {
+      credentials: { kind: 'workers-ai', apiToken: 't', accountId: 'a' }, kv: null, month, fetchImpl: fetchImpl as any,
+    });
+    expect(isTranslateError(r) && r.code).toBe('BAD_KEY');
+  });
+
+  it('never logs a user key when the provider call throws', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await translateHebrew({ text: 'הגדרות' }, {
+      credentials: { kind: 'workers-ai', apiToken: 'secret-token', accountId: 'a' }, kv: null, month,
+      fetchImpl: (async () => { throw new Error('network down'); }) as any,
+    });
+    await translateHebrew({ text: 'הגדרות' }, {
+      credentials: { kind: 'gemini', apiKey: 'secret-gemini' }, kv: null, month,
+      fetchImpl: (async () => { throw new Error('network down'); }) as any,
+    });
+    const logged = JSON.stringify([...spy.mock.calls, ...warn.mock.calls]);
+    expect(logged).not.toContain('secret-token');
+    expect(logged).not.toContain('secret-gemini');
+    spy.mockRestore();
+    warn.mockRestore();
   });
 });

@@ -11,6 +11,7 @@ import type {
 import { DictaBertHttpAnalyzer } from './providers/dictabert-http';
 import { WorkersAiAnalyzer } from './providers/workers-ai';
 import { GeminiAnalyzer } from './providers/gemini';
+import { bindingRunner, restRunner, type AiRunner } from '../auth/ai-runner';
 import { deriveStructuralIssues } from './rules';
 import { enrichStructuralIssues } from './enrichment';
 import { readActiveModels } from './model-registry';
@@ -81,6 +82,8 @@ export function statusFor(error: AnalyzeError): number {
   // BUDGET is not a client/server error — grammar analysis is simply paused
   // for the rest of the month, so the caller gets a 200 with an error body.
   if (error.code === 'BUDGET') return 200;
+  if (error.code === 'NEEDS_KEY') return 200;
+  if (error.code === 'BAD_KEY') return 401;
   return 502;
 }
 
@@ -108,12 +111,28 @@ export async function analyzeHebrew(
     lookupImpl: deps.lookupImpl,
   };
 
+  const credentials = deps.credentials ?? { kind: 'owner' as const };
+  if (credentials.kind === 'none') {
+    // The DictaBERT sidecar is not a metered AI provider; everything else needs a key.
+    const sidecar = PROVIDER_REGISTRY['dictabert-http'](ctx);
+    return sidecar ? sidecar.analyze(text, analyzeRequest) : { error: 'AI key required', code: 'NEEDS_KEY' };
+  }
+  if (credentials.kind === 'gemini') {
+    return new GeminiAnalyzer(credentials.apiKey, ctx.env.GEMINI_MODEL, ctx.fetchImpl).analyze(text, analyzeRequest);
+  }
+  if (credentials.kind === 'workers-ai') {
+    return runWorkersAi(deps, analyzeRequest, {
+      runner: restRunner(credentials.accountId, credentials.apiToken, ctx.fetchImpl),
+      metered: false,
+    });
+  }
+
   // 'workers-ai' needs an async KV read (model catalogue) and budget check,
   // so it can't live in the synchronous PROVIDER_REGISTRY. Try it explicitly
   // when requested, or as part of default-provider fallback when no other
   // provider is configured.
   if (provider === 'workers-ai') {
-    return runWorkersAi(ctx.env, deps, analyzeRequest);
+    return runWorkersAi(deps, analyzeRequest, ownerAccess(ctx.env));
   }
   if (provider) {
     const analyzer = PROVIDER_REGISTRY[provider](ctx);
@@ -127,7 +146,7 @@ export async function analyzeHebrew(
   for (const key of candidates) {
     if (key === 'workers-ai') {
       if (!ctx.env.AI) continue;
-      const result = await runWorkersAi(ctx.env, deps, analyzeRequest);
+      const result = await runWorkersAi(deps, analyzeRequest, ownerAccess(ctx.env));
       // Fall through to the next candidate only when workers-ai itself isn't
       // usable (no models configured); BUDGET and analysis outcomes are final.
       if (!isAnalyzeError(result) || result.code !== 'NO_MODELS') return result;
@@ -142,15 +161,15 @@ export async function analyzeHebrew(
 // Guards the workers-ai path with the KV-sourced model catalogue and the
 // monthly spend cap, then runs the analyzer and meters successful usage.
 async function runWorkersAi(
-  env: AnalyzeEnv,
   deps: AnalyzeDeps,
   request: AnalyzeRequest,
+  access: { runner: AiRunner; metered: boolean } | null,
 ): Promise<AnalyzeResult | AnalyzeError> {
-  if (!env.AI) return { error: 'No analysis provider configured', code: 'NO_PROVIDER' };
+  if (!access) return { error: 'No analysis provider configured', code: 'NO_PROVIDER' };
 
   const kv = deps.kv;
   const month = deps.month;
-  if (kv && month && (await isOverBudget(kv, month))) {
+  if (access.metered && kv && month && (await isOverBudget(kv, month))) {
     return { error: 'Monthly grammar budget reached', code: 'BUDGET' };
   }
 
@@ -159,10 +178,10 @@ async function runWorkersAi(
     return { error: 'No grammar models available', code: 'NO_MODELS' };
   }
 
-  const analyzer: Analyzer = new WorkersAiAnalyzer(env.AI, models);
+  const analyzer: Analyzer = new WorkersAiAnalyzer(access.runner, models);
   const result = await analyzer.analyze(request.text, request);
 
-  if (!isAnalyzeError(result) && kv && month) {
+  if (access.metered && !isAnalyzeError(result) && kv && month) {
     const winningModel = models.find((m) => m.id === result.model);
     if (winningModel) {
       const usage = (result.raw as { usage?: Usage } | undefined)?.usage;
@@ -203,4 +222,9 @@ class DictaBertOrchestrator implements Analyzer {
       return { error: `Could not parse analyzer response: ${(e as Error).message}`, code: 'PARSE' };
     }
   }
+}
+
+// The owner's own access: their Workers AI binding, metered on the monthly budget.
+function ownerAccess(env: AnalyzeEnv): { runner: AiRunner; metered: boolean } | null {
+  return env.AI ? { runner: bindingRunner(env.AI), metered: true } : null;
 }
