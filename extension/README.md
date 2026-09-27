@@ -27,7 +27,7 @@ runs locally.
 ---
 
 > **New here?** The step-by-step setup (install, permissions, which AI key to pick and where to
-> get it) is in the main [README › Install and use](../README.md#install-and-use).
+> get it) is in the user guide [docs/chrome-extension.md](../docs/chrome-extension.md).
 
 ## AI key
 
